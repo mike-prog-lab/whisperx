@@ -1,4 +1,8 @@
 # whisperx-worker
+
+## Important the repo is curently broken but you can use this prebuild dockerimage in meantime:
+https://hub.docker.com/layers/madiator2011/whisperx-worker/test4/images/sha256-9f0db60d38eb8158fa1e16ba7767f8357930e3605347d169b3abf33b5a480da6
+
 RunPod Serverless worker for WhisperX
 
 ## License
