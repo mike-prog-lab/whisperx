@@ -8,3 +8,12 @@ runpod
 cog
 speechbrain>=1.0.0
 cryptography<43.0.0
+faster-whisper==1.1.0
+ctranslate2<4.5.0
+transformers
+pandas
+setuptools>=65
+nltk
+huggingface_hub
+pyannote.audio
+ffmpeg-python
