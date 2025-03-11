@@ -26,9 +26,6 @@ RUN chmod +x /builder/download_models.sh
 RUN --mount=type=cache,target=/cache/models \
     /builder/download_models.sh
 
-# Verify WhisperX installation
-RUN python -c "import whisperx; print('WhisperX version:', whisperx.__version__)"
-
 # Copy source code
 COPY src .
 
