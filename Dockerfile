@@ -6,7 +6,7 @@ WORKDIR /
 # Update and upgrade the system packages (Worker Template)
 RUN apt-get update && \
     apt-get upgrade -y && \
-    apt-get install -y ffmpeg wget && \
+    apt-get install -y ffmpeg wget git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
