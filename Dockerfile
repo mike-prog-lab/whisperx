@@ -12,6 +12,7 @@ RUN apt-get update && \
 
 # Create cache directory
 RUN mkdir -p /cache/models
+RUN mkdir -p /models
 
 # Copy all builder files
 COPY builder /builder
@@ -20,13 +21,13 @@ COPY builder /builder
 RUN pip install --upgrade pip && \
     pip install -r /builder/requirements.txt
 
-# Download Faster Whisper Models
+# Download Faster Whisper Models and VAD model
 RUN chmod +x /builder/download_models.sh
 RUN --mount=type=cache,target=/cache/models \
     /builder/download_models.sh
 
-# Download VAD model after whisperx is properly installed
-RUN python -c "import whisperx; from whisperx.vad import load_vad_model; load_vad_model('cpu')"
+# Verify WhisperX installation
+RUN python -c "import whisperx; print('WhisperX version:', whisperx.__version__)"
 
 # Copy source code
 COPY src .
