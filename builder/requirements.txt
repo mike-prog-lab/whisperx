@@ -6,5 +6,5 @@ pydub
 git+https://github.com/m-bain/whisperx.git
 runpod
 cog
-speechbrain==0.5.16
+speechbrain>=1.0.0
 cryptography<43.0.0
