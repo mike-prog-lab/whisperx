@@ -6,6 +6,7 @@ CACHE_DIR="/cache/models"
 MODELS_DIR="/models"
 
 mkdir -p /root/.cache/torch/hub/checkpoints
+mkdir -p /root/.cache/whisperx/assets
 
 download() {
   local file_url="$1"
@@ -26,6 +27,7 @@ download() {
   echo "File copied to $destination_path"
 }
 
+# Download Faster Whisper model files
 faster_whisper_model_dir="${MODELS_DIR}/faster-whisper-large-v3"
 mkdir -p $faster_whisper_model_dir
 
@@ -51,11 +53,11 @@ except Exception as e:
     raise
 "
 
-# Download wav2vec2 model
+# Download wav2vec2 model for alignment
 echo "Downloading wav2vec2 model..."
 download "https://download.pytorch.org/torchaudio/models/wav2vec2_fairseq_base_ls960_asr_ls960.pth" "/root/.cache/torch/hub/checkpoints/wav2vec2_fairseq_base_ls960_asr_ls960.pth"
 
-# Download speechbrain model
+# Download speechbrain model for diarization
 echo "Downloading speechbrain model..."
 python3 -c "
 from huggingface_hub import snapshot_download
@@ -64,7 +66,8 @@ try:
     print('Successfully downloaded speechbrain model')
 except Exception as e:
     print('Error downloading speechbrain model:', e)
-    raise
+    # Don't raise an error here as this is optional
+    pass
 "
 
 echo "All models downloaded successfully."
