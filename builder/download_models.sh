@@ -6,7 +6,6 @@ CACHE_DIR="/cache/models"
 MODELS_DIR="/models"
 
 mkdir -p /root/.cache/torch/hub/checkpoints
-mkdir -p /root/.cache/whisperx/assets
 
 download() {
   local file_url="$1"
@@ -24,10 +23,8 @@ download() {
   fi
 
   cp "$cache_path" "$destination_path"
-  echo "File copied to $destination_path"
 }
 
-# Download Faster Whisper model files
 faster_whisper_model_dir="${MODELS_DIR}/faster-whisper-large-v3"
 mkdir -p $faster_whisper_model_dir
 
@@ -37,37 +34,15 @@ download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/pr
 download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/tokenizer.json" "$faster_whisper_model_dir/tokenizer.json"
 download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/vocabulary.json" "$faster_whisper_model_dir/vocabulary.json"
 
-# Pre-download Silero VAD model using torch.hub
-echo "Pre-downloading Silero VAD model using torch.hub..."
-python3 -c "
-import torch
-try:
-    vad_model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad',
-                                      model='silero_vad',
-                                      force_reload=False,
-                                      onnx=False,
-                                      trust_repo=True)
-    print('Successfully pre-downloaded Silero VAD model')
-except Exception as e:
-    print('Error pre-downloading Silero VAD model:', e)
-    raise
-"
+vad_model_dir="${MODELS_DIR}/vad"
+mkdir -p $vad_model_dir
 
-# Download wav2vec2 model for alignment
-echo "Downloading wav2vec2 model..."
+download $(python3 /builder/get_vad_model_url.py) "$vad_model_dir/whisperx-vad-segmentation.bin"
 download "https://download.pytorch.org/torchaudio/models/wav2vec2_fairseq_base_ls960_asr_ls960.pth" "/root/.cache/torch/hub/checkpoints/wav2vec2_fairseq_base_ls960_asr_ls960.pth"
 
-# Download speechbrain model for diarization
-echo "Downloading speechbrain model..."
 python3 -c "
 from huggingface_hub import snapshot_download
-try:
-    snapshot_download(repo_id='speechbrain/spkrec-ecapa-voxceleb')
-    print('Successfully downloaded speechbrain model')
-except Exception as e:
-    print('Error downloading speechbrain model:', e)
-    # Don't raise an error here as this is optional
-    pass
+snapshot_download(repo_id='speechbrain/spkrec-ecapa-voxceleb')
 "
 
 echo "All models downloaded successfully."
