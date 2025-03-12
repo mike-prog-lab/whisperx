@@ -1,9 +1,9 @@
 {
   "title": "Whisperx Worker",
-  "description": "Speech transcription with word-level timestamps and speaker diarization using WhisperX",
+  "description": "An example description",
   "type": "serverless",
   "category": "audio",
-  "iconUrl": "https://blog.madiator.com/pictures/favicon.png",
+  "iconUrl": "https://example.com/icon.png",
   "config": {
     "runsOn": "GPU",
     "containerDiskInGb": 20,
