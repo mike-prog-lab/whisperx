@@ -10,6 +10,9 @@ import shutil
 import whisperx
 import tempfile
 import time
+
+torch.backends.cudnn.allow_tf32 = True
+torch.backends.cuda.matmul.allow_tf32 = True
 import torch
 
 compute_type = "float16"  # change to "int8" if low on GPU mem (may reduce accuracy)
