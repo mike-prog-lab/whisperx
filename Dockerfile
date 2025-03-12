@@ -3,6 +3,8 @@ FROM runpod/base:0.6.2-cuda12.4.1
 SHELL ["/bin/bash", "-c"]
 WORKDIR /
 
+ENV HF_HUB_ENABLE_HF_TRANSFER=1
+
 # Update and upgrade the system packages (Worker Template)
 RUN apt-get update && \
     apt-get upgrade -y && \

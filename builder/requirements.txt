@@ -8,3 +8,4 @@ runpod==1.7.0
 cog
 speechbrain==0.5.16
 cryptography<43.0.0
+huggingface_hub[hf_transfer]
