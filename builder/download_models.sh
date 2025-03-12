@@ -34,10 +34,9 @@ download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/pr
 download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/tokenizer.json" "$faster_whisper_model_dir/tokenizer.json"
 download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/vocabulary.json" "$faster_whisper_model_dir/vocabulary.json"
 
-vad_model_dir="${MODELS_DIR}/vad"
-mkdir -p $vad_model_dir
+# VAD model is already copied to /root/.cache/torch/whisperx-vad-segmentation.bin in the Dockerfile
+# No need to download it or use get_vad_model_url.py
 
-download $(python3 /builder/get_vad_model_url.py) "$vad_model_dir/whisperx-vad-segmentation.bin"
 download "https://download.pytorch.org/torchaudio/models/wav2vec2_fairseq_base_ls960_asr_ls960.pth" "/root/.cache/torch/hub/checkpoints/wav2vec2_fairseq_base_ls960_asr_ls960.pth"
 
 python3 -c "
