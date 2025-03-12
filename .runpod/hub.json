@@ -1,153 +1,35 @@
 {
-  "title": "WhisperX Worker",
+  "title": "Whisperx Worker",
   "description": "Speech transcription with word-level timestamps and speaker diarization using WhisperX",
   "type": "serverless",
   "category": "audio",
-  "iconUrl": "https://raw.githubusercontent.com/m-bain/whisperX/main/whisperx-logo.png",
-  "tags": ["speech-to-text", "transcription", "whisper", "diarization", "audio"],
+  "iconUrl": "https://blog.madiator.com/pictures/favicon.png",
   "config": {
     "runsOn": "GPU",
-    "containerDiskInGb": 30,
+    "containerDiskInGb": 20,
     "presets": [
       {
-        "name": "Basic Transcription",
-        "description": "Automatic speech transcription with language detection",
-        "defaults": {}
-      },
-      {
-        "name": "Transcription with Alignment",
-        "description": "Transcription with word-level timestamp alignment",
+        "name": "Preset 1",
         "defaults": {
-          "ALIGN_OUTPUT": "true"
-        }
-      },
-      {
-        "name": "Transcription with Diarization",
-        "description": "Full transcription with speaker identification",
-        "defaults": {
-          "ALIGN_OUTPUT": "true",
-          "DIARIZATION": "true",
-          "HUGGINGFACE_ACCESS_TOKEN": ""
+          "STATIC_1": "value_1",
+          "STRING_1": "default value 1",
         }
       }
     ],
     "env": [
       {
-        "key": "LANGUAGE",
+        "key": "STATIC_VAR",
+        "value": "static_value"
+      },
+      {
+        "key": "STRING_VAR",
         "input": {
-          "name": "Default Language",
+          "name": "String Input",
           "type": "string",
-          "description": "ISO code of the language spoken in the audio (e.g., 'en', 'fr'). Leave empty for automatic detection",
-          "default": ""
-        }
-      },
-      {
-        "key": "BATCH_SIZE",
-        "input": {
-          "name": "Batch Size",
-          "type": "number",
-          "description": "Batch size for parallelized transcription (adjust based on GPU memory)",
-          "default": 64,
-          "minimum": 1,
-          "maximum": 128
-        }
-      },
-      {
-        "key": "TEMPERATURE",
-        "input": {
-          "name": "Temperature",
-          "type": "number",
-          "description": "Temperature for sampling (higher = more random)",
-          "default": 0,
-          "minimum": 0,
-          "maximum": 1
-        }
-      },
-      {
-        "key": "VAD_ONSET",
-        "input": {
-          "name": "VAD Onset",
-          "type": "number",
-          "description": "Voice Activity Detection onset threshold",
-          "default": 0.500,
-          "minimum": 0,
-          "maximum": 1
-        }
-      },
-      {
-        "key": "VAD_OFFSET",
-        "input": {
-          "name": "VAD Offset",
-          "type": "number",
-          "description": "Voice Activity Detection offset threshold",
-          "default": 0.363,
-          "minimum": 0,
-          "maximum": 1
-        }
-      },
-      {
-        "key": "ALIGN_OUTPUT",
-        "input": {
-          "name": "Align Output",
-          "type": "boolean",
-          "description": "Align Whisper output to get accurate word-level timestamps",
-          "default": false
-        }
-      },
-      {
-        "key": "DIARIZATION",
-        "input": {
-          "name": "Enable Diarization",
-          "type": "boolean",
-          "description": "Assign speaker ID labels to segments",
-          "default": false
-        }
-      },
-      {
-        "key": "HUGGINGFACE_ACCESS_TOKEN",
-        "input": {
-          "name": "HuggingFace Access Token",
-          "type": "string",
-          "description": "HuggingFace token required for diarization",
-          "default": ""
-        }
-      },
-      {
-        "key": "MIN_SPEAKERS",
-        "input": {
-          "name": "Minimum Speakers",
-          "type": "number",
-          "description": "Minimum number of speakers if diarization is activated",
-          "default": 1,
-          "minimum": 1,
-          "maximum": 10
-        }
-      },
-      {
-        "key": "MAX_SPEAKERS",
-        "input": {
-          "name": "Maximum Speakers",
-          "type": "number",
-          "description": "Maximum number of speakers if diarization is activated",
-          "default": 5,
-          "minimum": 1,
-          "maximum": 10
-        }
-      },
-      {
-        "key": "DEBUG",
-        "input": {
-          "name": "Debug Mode",
-          "type": "boolean",
-          "description": "Print out compute/inference times and memory usage information",
-          "default": false
+          "description": "A string input test",
+          "default": "new default value"
         }
       }
     ]
-  },
-  "recommended": {
-    "gpu": "NVIDIA L4 or better",
-    "memory": 24,
-    "storage": 30
   }
 }
