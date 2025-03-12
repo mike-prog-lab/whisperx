@@ -40,7 +40,7 @@ download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/vo
 # wav2vec2 model is already copied to /root/.cache/torch/hub/checkpoints/wav2vec2_fairseq_base_ls960_asr_ls960.pth in the Dockerfile
 # No need to download it
 
-python -c "
+python3 -c "
 from huggingface_hub import snapshot_download
 snapshot_download(repo_id='speechbrain/spkrec-ecapa-voxceleb')
 "
