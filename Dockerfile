@@ -22,7 +22,7 @@ RUN mkdir -p /root/.cache/torch
 COPY builder/requirements.txt /builder/requirements.txt
 
 # Install Python dependencies (Worker Template)
-RUN pip install --upgrade pip huggingface_hub[hf_transfer] && \
+RUN pip install --upgrade pip && \
     pip install -r /builder/requirements.txt
 
 # Copy the local VAD model to the expected location
