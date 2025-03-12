@@ -10,3 +10,4 @@ speechbrain==0.5.16
 cryptography<43.0.0
 huggingface-hub
 pyannote.audio==3.1.1
+numpy==1.24.2
