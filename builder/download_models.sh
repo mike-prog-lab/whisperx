@@ -37,9 +37,10 @@ download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/vo
 # VAD model is already copied to /root/.cache/torch/whisperx-vad-segmentation.bin in the Dockerfile
 # No need to download it or use get_vad_model_url.py
 
-download "https://download.pytorch.org/torchaudio/models/wav2vec2_fairseq_base_ls960_asr_ls960.pth" "/root/.cache/torch/hub/checkpoints/wav2vec2_fairseq_base_ls960_asr_ls960.pth"
+# wav2vec2 model is already copied to /root/.cache/torch/hub/checkpoints/wav2vec2_fairseq_base_ls960_asr_ls960.pth in the Dockerfile
+# No need to download it
 
-python3 -c "
+python -c "
 from huggingface_hub import snapshot_download
 snapshot_download(repo_id='speechbrain/spkrec-ecapa-voxceleb')
 "
