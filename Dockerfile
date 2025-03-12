@@ -13,6 +13,9 @@ RUN apt-get update && \
 # Create cache directory
 RUN mkdir -p /cache/models
 
+# Create torch cache directory for VAD model
+RUN mkdir -p /root/.cache/torch
+
 # Copy only requirements file first to leverage Docker cache
 COPY builder/requirements.txt /builder/requirements.txt
 
@@ -20,8 +23,8 @@ COPY builder/requirements.txt /builder/requirements.txt
 RUN pip install --upgrade pip && \
     pip install -r /builder/requirements.txt
 
-# Download VAD model
-RUN python -c "import whisperx; from whisperx.vad import load_vad_model; load_vad_model('cpu')"
+# Copy the local VAD model to the expected location
+COPY models/whisperx-vad-segmentation.bin /root/.cache/torch/whisperx-vad-segmentation.bin
 
 # Copy the rest of the builder files
 COPY builder /builder
