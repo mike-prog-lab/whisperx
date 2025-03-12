@@ -8,7 +8,7 @@ ENV HF_HUB_ENABLE_HF_TRANSFER=1
 # Update and upgrade the system packages (Worker Template)
 RUN apt-get update && \
     apt-get upgrade -y && \
-    apt-get install -y ffmpeg wget && \
+    apt-get install -y ffmpeg wget git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -22,7 +22,7 @@ RUN mkdir -p /root/.cache/torch
 COPY builder/requirements.txt /builder/requirements.txt
 
 # Install Python dependencies (Worker Template)
-RUN pip install --upgrade pip && \
+RUN pip install --upgrade pip huggingface_hub[hf_transfer] && \
     pip install -r /builder/requirements.txt
 
 # Copy the local VAD model to the expected location
