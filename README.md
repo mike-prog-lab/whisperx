@@ -1,8 +1,8 @@
+[![RunPod](https://api.runpod.io/badge/kodxana/whisperx-worker)](https://www.runpod.io/console/hub/kodxana/whisperx-worker)
+
 # WhisperX Worker for RunPod
 
 A serverless worker that provides high-quality speech transcription with timestamp alignment and speaker diarization using WhisperX on the RunPod platform.
-
-[![RunPod](https://api.runpod.io/badge/kodxana/whisperx-worker)](https://www.runpod.io/console/hub/kodxana/whisperx-worker)
 
 ## Features
 
