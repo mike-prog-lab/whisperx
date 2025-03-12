@@ -36,4 +36,4 @@ RUN /builder/download_models.sh
 # Copy source code
 COPY src .
 
-CMD [ "python", "-u", "/rp_handler.py" ]
+CMD [ "python3", "-u", "/rp_handler.py" ]
