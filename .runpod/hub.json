@@ -4,7 +4,7 @@
   "description": "Speech transcription with word-level timestamps and speaker diarization using WhisperX",
   "type": "serverless",
   "category": "audio",
-  "iconUrl": "https://raw.githubusercontent.com/m-bain/whisperX/main/whisperx-logo.png",
+  "iconUrl": "https://blog.madiator.com/pictures/favicon.png",
   "tags": ["speech-to-text", "transcription", "whisper", "diarization", "audio"],
   "config": {
     "runsOn": "GPU",
