@@ -33,6 +33,7 @@ A serverless worker that provides high-quality speech transcription with timesta
 | `min_speakers` | int | No | `null` | Minimum number of speakers (only applicable if diarization is enabled) |
 | `max_speakers` | int | No | `null` | Maximum number of speakers (only applicable if diarization is enabled) |
 | `debug` | bool | No | `false` | Whether to print compute/inference times and memory usage information |
+| `speaker_samples` | int | No | `100` | Number of samples to use for speaker diarization |
 
 ## Usage Examples
 

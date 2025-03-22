@@ -1,3 +1,4 @@
+# rp_handler.py
 import os
 import shutil
 import runpod
@@ -5,6 +6,7 @@ from runpod.serverless.utils.rp_validator import validate
 from runpod.serverless.utils import download_files_from_urls, rp_cleanup
 from rp_schema import INPUT_VALIDATIONS
 from predict import Predictor, Output
+import json
 
 MODEL = Predictor()
 MODEL.setup()
@@ -28,7 +30,7 @@ def run(job):
     if 'errors' in validated_input:
         return {"error": validated_input['errors']}
     
-    # Download audio file
+    # Download audio file (any audio/video type)
     audio_file_path = download_files_from_urls(job['id'], [job_input['audio_file']])[0]
     
     # Prepare input for prediction
@@ -47,20 +49,30 @@ def run(job):
         'huggingface_access_token': job_input.get('huggingface_access_token'),
         'min_speakers': job_input.get('min_speakers'),
         'max_speakers': job_input.get('max_speakers'),
-        'debug': job_input.get('debug', False)
+        'debug': job_input.get('debug', False),
+        'speaker_verification': job_input.get('speaker_verification', False),
+        'speaker_samples': job_input.get('speaker_samples', [])
     }
     
-    # Run prediction
     try:
+        # Run prediction (which includes transcription, diarization, etc.)
         result = MODEL.predict(**predict_input)
         
-        # Convert Output model to dict for JSON serialization
+        # Convert prediction output to dict for JSON serialization
         output_dict = {
             "segments": result.segments,
             "detected_language": result.detected_language
         }
         
-        # Cleanup downloaded files
+        # If speaker verification is enabled, process the diarized output
+        if predict_input.get('speaker_verification', False):
+            from speaker_id import load_known_speakers_from_urls, process_diarized_output
+            speaker_samples = predict_input.get('speaker_samples', [])
+            if speaker_samples:
+                known_embeddings = load_known_speakers_from_urls(speaker_samples)
+                output_dict = process_diarized_output(output_dict, audio_file_path, known_embeddings)
+        
+        # Cleanup downloaded files and temporary job directory
         rp_cleanup.clean(['input_objects'])
         cleanup_job_files(job_id)
         

@@ -4,7 +4,7 @@
   "type": "serverless",
   "category": "audio",
   "iconUrl": "https://blog.madiator.com/pictures/favicon.png",
-  "tags": ["speech-to-text", "transcription", "whisper", "diarization", "audio"],
+  "tags": ["speech-to-text", "transcription", "whisper", "diarization", "audio", "speaker identification"],
   "config": {
     "runsOn": "GPU",
     "containerDiskInGb": 30,
@@ -16,6 +16,10 @@
       {
         "name": "Transcription with Alignment",
         "description": "Transcription with word-level timestamp alignment"
+      },
+      {
+        "name": "Speaker Identification",
+        "description": "Selective speaker identification for audio files"
       },
       {
         "name": "Transcription with Diarization",

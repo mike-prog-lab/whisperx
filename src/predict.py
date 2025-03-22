@@ -2,7 +2,7 @@ from cog import BasePredictor, Input, Path, BaseModel
 from pydub import AudioSegment
 from typing import Any
 from whisperx.audio import N_SAMPLES, log_mel_spectrogram
-
+from scipy.spatial.distance import cosine
 import gc
 import math
 import os
@@ -297,3 +297,21 @@ def diarize(audio, result, debug, huggingface_access_token, min_speakers, max_sp
     del diarize_model
 
     return result
+
+def identify_speaker_for_segment(segment_embedding, known_embeddings, threshold=0.75):
+    """
+    Compare segment_embedding to known speaker embeddings using cosine similarity.
+    Returns the speaker name with the highest similarity above the threshold,
+    or "Unknown" if none match.
+    """
+    best_match = "Unknown"
+    best_similarity = -1
+    for speaker, known_emb in known_embeddings.items():
+        similarity = 1 - cosine(segment_embedding, known_emb)
+        if similarity > best_similarity:
+            best_similarity = similarity
+            best_match = speaker
+    if best_similarity >= threshold:
+        return best_match, best_similarity
+    else:
+        return "Unknown", best_similarity
