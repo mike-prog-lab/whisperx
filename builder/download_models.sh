@@ -43,6 +43,13 @@ download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/vo
 python3 -c "
 from huggingface_hub import snapshot_download
 snapshot_download(repo_id='speechbrain/spkrec-ecapa-voxceleb')
+load_dotenv()
+hf_token = os.environ.get('HF_TOKEN')
+if hf_token:
+    snapshot_download(repo_id='pyannote/embedding', use_auth_token=hf_token)
+    snapshot_download(repo_id='pyannote/speaker-diarization@2.1', use_auth_token=hf_token)
+else:
+    print('WARNING: HF_TOKEN not set, skipping pyannote models download')
 "
 
 echo "All models downloaded successfully."

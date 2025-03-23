@@ -12,6 +12,36 @@ import tempfile
 import time
 import torch
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()  # Load from .env file if present
+token = os.getenv("HF_TOKEN")
+
+import logging
+import sys
+logger = logging.getLogger("predict")
+logger.setLevel(logging.DEBUG)
+
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.DEBUG)
+console_formatter = logging.Formatter(
+    "%(asctime)s %(levelname)s [%(name)s]: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+)
+console_handler.setFormatter(console_formatter)
+
+file_handler = logging.FileHandler("container_log.txt", mode="a")
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(console_formatter)
+
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
+
+
+
+
+
+
 torch.backends.cudnn.allow_tf32 = True
 torch.backends.cuda.matmul.allow_tf32 = True
 compute_type = "float16"  # change to "int8" if low on GPU mem (may reduce accuracy)
@@ -89,7 +119,16 @@ class Predictor(BasePredictor):
                 default=None),
             debug: bool = Input(
                 description="Print out compute/inference times and memory usage information",
-                default=False)
+                default=False),
+            speaker_verification: bool = Input(
+                description="Enable speaker verification",
+                default=False),
+            speaker_samples: list = Input(
+                description="List of speaker samples for verification. Each sample should be a dict with 'url' and "
+                            "optional 'name' and 'file_path'. If 'name' is not provided, the file name (without "
+                            "extension) is used. If 'file_path' is provided, it will be used directly.",
+                default=[]
+            )
     ) -> Output:
         with torch.inference_mode():
             asr_options = {
@@ -178,6 +217,7 @@ class Predictor(BasePredictor):
 
 
 def get_audio_duration(file_path):
+    
     return len(AudioSegment.from_file(file_path))
 
 

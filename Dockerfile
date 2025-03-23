@@ -9,7 +9,10 @@ RUN apt-get update && \
     apt-get install -y ffmpeg wget git libcudnn8 libcudnn8-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
+    
+# In your Dockerfile
+ARG HF_TOKEN
+ENV HF_TOKEN=${HF_TOKEN}
 # Create cache directory
 RUN mkdir -p /cache/models
 
