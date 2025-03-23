@@ -9,10 +9,8 @@ RUN apt-get update && \
     apt-get install -y ffmpeg wget git libcudnn8 libcudnn8-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-    
+
 # In your Dockerfile
-ARG HF_TOKEN
-ENV HF_TOKEN=${HF_TOKEN}
 # Create cache directory
 RUN mkdir -p /cache/models
 
@@ -34,7 +32,7 @@ COPY builder /builder
 
 # Download Faster Whisper Models
 RUN chmod +x /builder/download_models.sh
-RUN /builder/download_models.sh
+RUN --mount=type=secret,id=hf_token /builder/download_models.sh
 
 # Copy source code
 COPY src .

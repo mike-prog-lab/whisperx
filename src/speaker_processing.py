@@ -7,11 +7,8 @@ import requests
 from pyannote.audio import Inference
 from scipy.spatial.distance import cosine
 import logging
-from dotenv import load_dotenv
 
-load_dotenv()
 
-HF_TOKEN = os.getenv("HF_TOKEN")
 # Set up logging (you can adjust handlers as needed)
 logger = logging.getLogger("speaker_processing")
 logger.setLevel(logging.DEBUG)
@@ -29,12 +26,12 @@ _SPEAKER_EMBEDDING_CACHE = {}
 
 def load_known_speakers_from_samples(speaker_samples,  huggingface_access_token=None):
     # Use the passed token, environment variable, or fallback
-    token_to_use = huggingface_access_token or os.getenv("HF_TOKEN")
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     try:
         # First try with minimal logging to use cached model
-        model = Inference("pyannote/embedding", use_auth_token=token_to_use, device=device)
+        model = Inference("pyannote/embedding", use_auth_token=huggingface_access_token, device=device)
         logger.debug("Successfully loaded pyannote embedding model")
     except Exception as e:
         logger.error(f"Failed to load pyannote embedding model: {e}", exc_info=True)

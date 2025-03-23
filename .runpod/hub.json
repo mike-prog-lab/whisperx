@@ -18,12 +18,12 @@
         "description": "Transcription with word-level timestamp alignment"
       },
       {
-        "name": "Speaker Identification",
-        "description": "Selective speaker identification for audio files"
-      },
-      {
         "name": "Transcription with Diarization",
         "description": "Full transcription with speaker identification"
+      },
+      {
+        "name": "Speaker Identification",
+        "description": "Selective speaker identification for audio files"
       }
     ]
   },

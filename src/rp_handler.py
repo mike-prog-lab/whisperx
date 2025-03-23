@@ -7,10 +7,7 @@ from runpod.serverless.utils import download_files_from_urls, rp_cleanup
 from rp_schema import INPUT_VALIDATIONS
 from predict import Predictor, Output
 import os
-from dotenv import load_dotenv
-
-load_dotenv()  # Load from .env file if present
-token = os.getenv("HF_TOKEN")
+import speaker_processing
 
 import logging
 import sys

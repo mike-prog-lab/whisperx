@@ -11,12 +11,8 @@ import whisperx
 import tempfile
 import time
 import torch
+import speaker_processing
 
-import os
-from dotenv import load_dotenv
-
-load_dotenv()  # Load from .env file if present
-token = os.getenv("HF_TOKEN")
 
 import logging
 import sys
