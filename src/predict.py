@@ -339,7 +339,7 @@ def diarize(audio, result, debug, huggingface_access_token, min_speakers, max_sp
 
     return result
 
-def identify_speaker_for_segment(segment_embedding, known_embeddings, threshold=0.75):
+def identify_speaker_for_segment(segment_embedding, known_embeddings, threshold=0.2):
     """
     Compare segment_embedding to known speaker embeddings using cosine similarity.
     Returns the speaker name with the highest similarity above the threshold,
