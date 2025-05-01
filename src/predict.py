@@ -1,4 +1,9 @@
-from cog import BasePredictor, Input, Path, BaseModel
+#from cog import BasePredictor, Input, Path, BaseModel
+try:
+    # Prefer real cog if present (e.g. when running locally)
+    from cog import BasePredictor, Input, Path, BaseModel
+except ImportError:                          # pragma: no cover
+    from cog_stub import BasePredictor, Input, Path, BaseModel
 from pydub import AudioSegment
 from typing import Any
 from whisperx.audio import N_SAMPLES, log_mel_spectrogram

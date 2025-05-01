@@ -1,5 +1,55 @@
 # rp_handler.py
+######SETTING HF_TOKENT#############
+from speaker_profiles import load_embeddings, relabel  # top of file
 import os
+import logging
+from huggingface_hub import login, whoami
+import torch
+import numpy as np
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+from speechbrain.pretrained import EncoderClassifier # type: ignore
+
+def spk_embed(wave_16k_mono: np.ndarray) -> np.ndarray:
+    wav = torch.tensor(wave_16k_mono).unsqueeze(0).to(device)
+    return ecapa.encode_batch(wav).squeeze(0).cpu().numpy()
+
+def to_numpy(x):
+    return x.detach().cpu().numpy() if isinstance(x, torch.Tensor) else np.asarray(x)
+
+# Set up logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+import os
+import logging
+from huggingface_hub import login, whoami
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# Grab the HF_TOKEN from environment
+raw_token = os.environ.get("HF_TOKEN", "")
+hf_token = raw_token.strip()
+
+if not hf_token.startswith("hf_"):
+    print(f"Token malformed or missing 'hf_' prefix. Forcing correction...")
+    hf_token = "h" + hf_token  # Force adding the 'h' (temporary fix)
+
+print(f" Final HF_TOKEN used: #{hf_token}")
+if hf_token:
+    try:
+        logger.debug(f"HF_TOKEN Loaded: {repr(hf_token[:10])}...")  # Show only start of token for security
+        login(token=hf_token, add_to_git_credential=False)  # Safe for container runs
+        user = whoami(token=hf_token)
+        logger.info(f"Hugging Face Authenticated as: {user['name']}")
+    except Exception as e:
+        logger.error(" Failed to authenticate with Hugging Face", exc_info=True)
+else:
+    logger.warning("No Hugging Face token found in HF_TOKEN environment variable.")
+##############
+
 import shutil
 import runpod
 from runpod.serverless.utils.rp_validator import validate
@@ -8,7 +58,7 @@ from rp_schema import INPUT_VALIDATIONS
 from predict import Predictor, Output
 import os
 import speaker_processing
-
+import copy
 import logging
 import sys
 # Create a custom logger
@@ -52,110 +102,100 @@ def cleanup_job_files(job_id, jobs_directory='/jobs'):
     else:
         logger.debug(f"Job directory not found: {job_path}")
 
+# --------------------------------------------------------------------
+# main serverless entry-point
+# --------------------------------------------------------------------
 def run(job):
-    job_input = job['input']
-    job_id = job['id']
-    # Input validation
-    validated_input = validate(job_input, INPUT_VALIDATIONS)
-    if 'errors' in validated_input:
-        return {"error": validated_input['errors']}
-    
-    # Download audio file (any audio/video type)
-    
+    job_id     = job["id"]
+    job_input  = job["input"]
+
+    # ------------- validate basic schema ----------------------------
+    validated = validate(job_input, INPUT_VALIDATIONS)
+    if "errors" in validated:
+        return {"error": validated["errors"]}
+
+    # ------------- 1) download primary audio ------------------------
     try:
-        audio_file_path = download_files_from_urls(job['id'], [job_input['audio_file']])[0]
-    except KeyError:
-        logger.error("Missing 'audio_file' key in job input.", exc_info=True)
-        return {"error": "Missing 'audio_file' key in job input."}
+        audio_file_path = download_files_from_urls(job_id,
+                                                   [job_input["audio_file"]])[0]
+        logger.debug(f"Audio downloaded → {audio_file_path}")
     except Exception as e:
-        logger.error(f"Error downloading audio file: {str(e)}", exc_info=True)
-        return {"error": f"Failed to download audio file: {str(e)}"}
-    logger.debug(f"Downloaded main audio file to: {audio_file_path}")
+        logger.error("Audio download failed", exc_info=True)
+        return {"error": f"audio download: {e}"}
 
-    # Download speaker sample files, if provided.
-    logger.debug("Job input speaker_samples: " + str(job_input.get('speaker_samples', [])))
-    speaker_samples = job_input.get('speaker_samples', [])
-    if speaker_samples:
-        # Extract URLs from each sample.
-        sample_urls = [sample.get("url") for sample in speaker_samples if sample.get("url")]
-        if sample_urls:
-            try:
-                downloaded_sample_paths = download_files_from_urls(job['id'], sample_urls)
-                if len(downloaded_sample_paths) != len(sample_urls):
-                    raise ValueError("Mismatch between sample URLs and downloaded file paths.")
-                # Update each sample dictionary with a 'file_path' key.
-                for i, sample in enumerate(speaker_samples):
-                    sample["file_path"] = downloaded_sample_paths[i]
-                logger.debug(f"Downloaded speaker samples: {downloaded_sample_paths}")
-            except Exception as e:
-                logger.error(f"Error downloading speaker samples: {str(e)}", exc_info=True)
-                return {"error": f"Failed to download speaker samples: {str(e)}"}
-        else:
-            logger.debug("No valid speaker sample URLs provided.")
+    # ------------- 2) download speaker profiles (optional) ----------
+    speaker_profiles = job_input.get("speaker_samples", [])   # ← list of dicts
+    if speaker_profiles:
+        urls = [s.get("url") for s in speaker_profiles if s.get("url")]
+        if urls:
+            local_paths = download_files_from_urls(job_id, urls)
+            for s, path in zip(speaker_profiles, local_paths):
+                s["file_path"] = path                       # mutate in-place
+                logger.debug(f"Profile {s.get('name')} → {path}")
+    # ----------------------------------------------------------------
 
-    
-    # Prepare input for prediction
+    # ------------- 3) call WhisperX / VAD / diarization -------------
     predict_input = {
-        'audio_file': audio_file_path,
-        'language': job_input.get('language', None),
-        'language_detection_min_prob': job_input.get('language_detection_min_prob', 0),
-        'language_detection_max_tries': job_input.get('language_detection_max_tries', 5),
-        'initial_prompt': job_input.get('initial_prompt', None),
-        'batch_size': job_input.get('batch_size', 64),
-        'temperature': job_input.get('temperature', 0),
-        'vad_onset': job_input.get('vad_onset', 0.500),
-        'vad_offset': job_input.get('vad_offset', 0.363),
-        'align_output': job_input.get('align_output', False),
-        'diarization': job_input.get('diarization', False),
-        'huggingface_access_token': job_input.get('huggingface_access_token', None),
-        'min_speakers': job_input.get('min_speakers', None),
-        'max_speakers': job_input.get('max_speakers', None),
-        'debug': job_input.get('debug', False),
-        'speaker_verification': job_input.get('speaker_verification', False),
-        'speaker_samples': job_input.get('speaker_samples', [])
+        "audio_file"               : audio_file_path,
+        "language"                 : job_input.get("language"),
+        "language_detection_min_prob": job_input.get("language_detection_min_prob", 0),
+        "language_detection_max_tries": job_input.get("language_detection_max_tries", 5),
+        "initial_prompt"           : job_input.get("initial_prompt"),
+        "batch_size"               : job_input.get("batch_size", 64),
+        "temperature"              : job_input.get("temperature", 0),
+        "vad_onset"                : job_input.get("vad_onset", 0.50),
+        "vad_offset"               : job_input.get("vad_offset", 0.363),
+        "align_output"             : job_input.get("align_output", False),
+        "diarization"              : job_input.get("diarization", False),
+        "huggingface_access_token" : job_input.get("huggingface_access_token"),
+        "min_speakers"             : job_input.get("min_speakers"),
+        "max_speakers"             : job_input.get("max_speakers"),
+        "debug"                    : job_input.get("debug", False),
     }
-    
+
     try:
-        try:
-            # Run prediction (which includes transcription, diarization, etc.)
-            result = MODEL.predict(**predict_input)
-            logger.debug("Prediction completed successfully.")
-            
-            # Convert prediction output to dict for JSON serialization
-            output_dict = {
-                "segments": result.segments,
-                "detected_language": result.detected_language
-            }
-            try:
-                from speaker_processing import load_known_speakers_from_samples, process_diarized_output
-            except ImportError as e:
-                logger.error(f"Error importing speaker_processing module: {str(e)}", exc_info=True)
-                return {"error": f"Speaker verification module not found: {str(e)}"}
-            
-            # If speaker verification is enabled, process the diarized output
-            if predict_input.get('speaker_verification', False):
-                try:
-                    speaker_samples = predict_input.get('speaker_samples', [])
-                    if speaker_samples:
-                        known_embeddings = load_known_speakers_from_samples(speaker_samples)
-                        output_dict = process_diarized_output(output_dict, audio_file_path, known_embeddings)
-                except Exception as e:
-                    logger.error(f"Error during speaker verification: {str(e)}", exc_info=True)
-                    return {"error": f"Speaker verification failed: {str(e)}"}
-            
-            # Cleanup downloaded files and temporary job directory
-            try:
-                rp_cleanup.clean(['input_objects'])
-                cleanup_job_files(job_id)
-            except Exception as e:
-                logger.warning(f"Error during cleanup: {str(e)}", exc_info=True)
-            
-            return output_dict
-        except Exception as e:
-            logger.error(f"Error during prediction: {str(e)}", exc_info=True)
-            return {"error": f"Prediction failed: {str(e)}"}
+        result = MODEL.predict(**predict_input)             # <-- heavy job
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
-        return {"error": str(e)}
+        logger.error("WhisperX prediction failed", exc_info=True)
+        return {"error": f"prediction: {e}"}
+
+    output_dict = {
+        "segments"         : result.segments,
+        "detected_language": result.detected_language
+    }
+    # ----------------------------------------------------------------
+
+    # 2) If speaker verification requested, do both load & relabel in one shot
+    if job_input.get("speaker_verification", False) and speaker_profiles:
+        try:
+            # load enroll-speaker embeddings
+            from speaker_processing import load_known_speakers_from_samples, process_diarized_output
+
+            known_embeds = load_known_speakers_from_samples(
+                speaker_profiles,
+                huggingface_access_token=predict_input.get("huggingface_access_token"),
+            )
+
+            # process the diarized segments + relabel them
+            output_dict = process_diarized_output(
+                output_dict,
+                audio_file_path,
+                known_embeds,
+                huggingface_access_token=predict_input.get("huggingface_access_token"),
+            )
+
+        except Exception as e:
+            logger.error("Speaker verification failed", exc_info=True)
+            # don’t blow up the whole job just for verification
+            output_dict.setdefault("warnings", []).append(f"speaker verification skipped: {e}")
+
+    # 3) cleanup
+    try:
+        rp_cleanup.clean(["input_objects"])
+        cleanup_job_files(job_id)
+    except Exception as e:
+        logger.warning(f"Cleanup issue: {e}", exc_info=True)
+
+    return output_dict
 
 runpod.serverless.start({"handler": run})

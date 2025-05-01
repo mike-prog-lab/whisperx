@@ -58,20 +58,23 @@ except ImportError:
 
 from huggingface_hub import snapshot_download
 
-# Read HF token from BuildKit secret file
+# Try to read HF token from BuildKit secret file.
 hf_token = None
 try:
     with open('/run/secrets/hf_token', 'r') as f:
         hf_token = f.read().strip()
 except Exception as e:
-    print('ERROR: Unable to read HF token from /run/secrets/hf_token:', e)
-    exit(1)
+    print('No secret file found, falling back to environment variable:', e)
+    hf_token = os.environ.get('HF_TOKEN')
 
 # Download SpeechBrain speaker recognition model
 snapshot_download(repo_id='speechbrain/spkrec-ecapa-voxceleb')
 
-# Download PyAnnote models using the token
-snapshot_download(repo_id='pyannote/embedding', use_auth_token=hf_token)
+# Optionally download PyAnnote models if HF_TOKEN is set
+if hf_token:
+    snapshot_download(repo_id='pyannote/embedding', use_auth_token=hf_token)
+    snapshot_download(repo_id='pyannote/speaker-diarization-2.1', use_auth_token=hf_token)
+else:
+    print('WARNING: HF_TOKEN not set, skipping pyannote models download')
 "
-
 echo "All models downloaded successfully."

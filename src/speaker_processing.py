@@ -1,178 +1,145 @@
-import os
-import torch
-import librosa
+# speaker_processing.py
+import os, tempfile, logging, requests
+from collections import defaultdict
+from typing import Dict, List, Any
+
 import numpy as np
-import tempfile
-import requests
-from pyannote.audio import Inference
+import librosa
+import torch
 from scipy.spatial.distance import cosine
-import logging
+from pyannote.audio import Inference
+from pyannote.core import SlidingWindowFeature
 
-
-# Set up logging (you can adjust handlers as needed)
 logger = logging.getLogger("speaker_processing")
 logger.setLevel(logging.DEBUG)
-if not logger.handlers:
-    # Only add handlers if none exist (to avoid duplicates)
-    import sys
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("%(asctime)s %(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
 
-# Global cache for computed speaker embeddings.
-_SPEAKER_EMBEDDING_CACHE = {}
+# ---------------------------------------------------------------------
+# 0) small helpers
+# ---------------------------------------------------------------------
+_SPK_CACHE: Dict[str, np.ndarray] = {}
+_EMBED_MODEL: Inference | None = None
 
-def load_known_speakers_from_samples(speaker_samples,  huggingface_access_token=None):
-    # Use the passed token, environment variable, or fallback
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    try:
-        # First try with minimal logging to use cached model
-        model = Inference("pyannote/embedding", use_auth_token=huggingface_access_token, device=device)
-        logger.debug("Successfully loaded pyannote embedding model")
-    except Exception as e:
-        logger.error(f"Failed to load pyannote embedding model: {e}", exc_info=True)
-        return {}
-    
-    """
-    For each sample in speaker_samples (list of dicts with 'url' and optional 'name' and 'file_path'),
-    download the file if necessary, then compute and return a dict mapping sample names to embeddings.
-    If no 'name' is provided, the file name (without extension) is used.
-    Uses an in-memory cache to avoid redundant computation.
-    """
-    global _SPEAKER_EMBEDDING_CACHE
-    known_embeddings = {}
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    try:
-        model = Inference("pyannote/embedding", use_auth_token=huggingface_access_token, device=device)
-    except Exception as e:
-        logger.error(f"Failed to load pyannote embedding model: {e}", exc_info=True)
-        return {}
+def _embed(wav: np.ndarray, sr: int = 16000,
+           token: str | None = None) -> np.ndarray:
+    """Return a 512-d ℓ2-normalised PyAnnote embedding."""
+    global _EMBED_MODEL
+    if _EMBED_MODEL is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        _EMBED_MODEL = Inference("pyannote/embedding",
+                                 use_auth_token=token,
+                                 device=device)
 
-    for sample in speaker_samples:
-        # Determine sample name: use provided name; if not, extract from URL.
-        name = sample.get("name")
-        url = sample.get("url")
-        if not name:
-            if url:
-                name = os.path.splitext(os.path.basename(url))[0]
-                logger.debug(f"No name provided; using '{name}' from URL.")
-            else:
-                logger.error(f"Skipping sample with missing name and URL: {sample}")
-                continue
+    feat = _EMBED_MODEL(
+        {"waveform": torch.tensor(wav).unsqueeze(0),
+         "sample_rate": sr}
+    )
 
-        # Check cache first.
-        if name in _SPEAKER_EMBEDDING_CACHE:
-            logger.debug(f"Using cached embedding for speaker '{name}'.")
-            known_embeddings[name] = _SPEAKER_EMBEDDING_CACHE[name]
+    if isinstance(feat, SlidingWindowFeature):
+        feat = feat.data.mean(axis=0)          # (dim,)
+    elif isinstance(feat, torch.Tensor):
+        feat = feat.squeeze(0).cpu().numpy()   # (dim,)
+
+    feat = feat.astype(np.float32)
+    return feat / np.linalg.norm(feat)          # ℓ2-norm = 1
+
+
+# ---------------------------------------------------------------------
+# 1) enrollment
+# ---------------------------------------------------------------------
+def load_known_speakers_from_samples(
+    samples: List[Dict[str, Any]],
+    huggingface_access_token: str | None = None
+) -> Dict[str, np.ndarray]:
+
+    embeddings: dict[str, np.ndarray] = {}
+
+    for s in samples:
+        name = s.get("name") or os.path.splitext(os.path.basename(s["url"]))[0]
+        if name in _SPK_CACHE:                 # cached
+            embeddings[name] = _SPK_CACHE[name]
             continue
 
-        # Determine source file: if sample has a local file_path, use that; otherwise, download.
-        if sample.get("file_path"):
-            filepath = sample["file_path"]
-            logger.debug(f"Loading speaker sample '{name}' from local file: {filepath}")
-        elif url:
-            try:
-                logger.debug(f"Downloading speaker sample '{name}' from URL: {url}")
-                response = requests.get(url)
-                response.raise_for_status()
-                suffix = os.path.splitext(url)[1]
-                if not suffix:
-                    suffix = ".wav"
-                with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-                    tmp.write(response.content)
-                    tmp.flush()
-                    filepath = tmp.name
-                    logger.debug(f"Downloaded sample '{name}' to temporary file: {filepath}")
-            except Exception as e:
-                logger.error(f"Failed to download speaker sample '{name}' from {url}: {e}", exc_info=True)
-                continue
-        else:
-            logger.error(f"Skipping sample '{name}': no file_path or URL provided.")
-            try:
-                waveform, _ = librosa.load(filepath, sr=16000, mono=True)
-            except Exception as e:
-                logger.error(f"Failed to load audio file {filepath}: {e}", exc_info=True)
-                continue
+        # --- read the sample (local path or download) ----------------
+        path = s.get("file_path")
+        if path is None:
+            # download to temp
+            resp = requests.get(s["url"], timeout=60)
+            resp.raise_for_status()
+            suffix = os.path.splitext(s["url"])[1] or ".wav"
+            tf = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+            tf.write(resp.content);  tf.close()
+            path = tf.name
 
-        # Process the file: load audio and compute embedding.
-        try:
-            waveform, sr = librosa.load(filepath, sr=16000, mono=True)
-            emb = model(torch.tensor(waveform).unsqueeze(0))
-            emb_np = emb.detach().cpu().numpy().flatten()
-            _SPEAKER_EMBEDDING_CACHE[name] = emb_np
-            known_embeddings[name] = emb_np
-            logger.debug(f"Computed embedding for '{name}' (norm={np.linalg.norm(emb_np):.2f}).")
-        except Exception as e:
-            logger.error(f"Failed to process speaker sample '{name}' from file {filepath}: {e}", exc_info=True)
-        
-        # If we downloaded to a temporary file, you may choose to delete it:
-        if not sample.get("file_path") and url and 'filepath' in locals():
-            try:
-                os.remove(filepath)
-                logger.debug(f"Removed temporary file for '{name}': {filepath}")
-            except Exception as e:
-                logger.warning(f"Could not remove temporary file {filepath}: {e}")
+        wav, _ = librosa.load(path, sr=16000, mono=True)
+        emb = _embed(wav, token=huggingface_access_token)
+        _SPK_CACHE[name] = emb
+        embeddings[name] = emb
+        logger.debug(f"[enrol] {name}: vector norm={np.linalg.norm(emb):.2f}")
 
-    return known_embeddings
+        if "file_path" not in s:               # we downloaded → delete
+            os.remove(path)
 
-def identify_speaker(segment_embedding, known_embeddings, threshold=0.75):
-    """
-    Compare a segment embedding against known speaker embeddings.
-    Returns the best matching speaker and similarity score.
-    If no match exceeds the threshold, returns "Unknown" and the best similarity.
-    """
-    if not isinstance(segment_embedding, np.ndarray):
-        logger.error("Invalid segment_embedding: Expected a numpy array.")
-        return "Unknown", -1
+    return embeddings
 
-    if not isinstance(known_embeddings, dict):
-        logger.error("Invalid known_embeddings: Expected a dictionary.")
-        return "Unknown", -1
 
-    best_match = "Unknown"
-    best_similarity = -1
-    for speaker, known_emb in known_embeddings.items():
-        if not isinstance(known_emb, np.ndarray):
-            logger.warning(f"Skipping invalid embedding for speaker '{speaker}'.")
-            continue
-        score = 1 - cosine(segment_embedding, known_emb)
-        if score > best_similarity:
-            best_similarity = score
-            best_match = speaker
-    if best_similarity >= threshold:
-        return best_match, best_similarity
-    else:
-        return "Unknown", best_similarity
+# ---------------------------------------------------------------------
+# 2) diarization post-processing
+# ---------------------------------------------------------------------
+def identify_speaker(vec: np.ndarray,
+                     enrol: Dict[str, np.ndarray],
+                     threshold: float = .5) -> tuple[str, float]:
+    best, score = "Unknown", -1.0
+    for name, ref in enrol.items():
+        sim = 1 - cosine(vec, ref)             # cosine similarity
+        if sim > score:
+            best, score = name, sim
+    return (best, score) if score >= threshold else ("Unknown", score)
 
-def process_diarized_output(output, audio_filepath, known_embeddings, huggingface_access_token=None):
-    """
-    For each diarized segment in the output, extract its audio from the given audio file,
-    compute its embedding, and update the segment's speaker label using known_embeddings.
-    """
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    embedding_model = Inference("pyannote/embedding", use_auth_token=huggingface_access_token, device=device)
-    
+
+def process_diarized_output(
+    output: dict,
+    audio_path: str,
+    enrol: dict[str, np.ndarray],
+    threshold: float = .5,
+    huggingface_access_token: str | None = None
+) -> dict:
+
     segments = output.get("segments", [])
-    for segment in segments:
-        start = segment.get("start")
-        end = segment.get("end")
-        duration = end - start
-        try:
-            waveform, _ = librosa.load(audio_filepath, sr=16000, mono=True, offset=start, duration=duration)
-        except Exception as e:
-            logger.error(f"Failed to load audio segment from {audio_filepath} for {start}-{end}: {e}", exc_info=True)
+    if not segments:
+        return output
+
+    # --- (a) embed every segment ------------------------------------
+    for seg in segments:
+        start, end = seg["start"], seg["end"]
+        wav, _ = librosa.load(audio_path, sr=16000,
+                              mono=True, offset=start, duration=end - start)
+        if wav.size == 0:
             continue
-        if len(waveform) == 0:
-            logger.warning(f"Empty waveform for segment {start}-{end} in file {audio_filepath}.")
+        seg["embedding"] = _embed(wav, token=huggingface_access_token)
+
+    # --- (b) centroid per diarization label -------------------------
+    clusters: dict[str, list[np.ndarray]] = defaultdict(list)
+    for seg in segments:
+        clusters[seg["speaker"]].append(seg["embedding"])
+
+    centroids = {lbl: np.mean(v, axis=0) / np.linalg.norm(np.mean(v, axis=0))
+                 for lbl, v in clusters.items()}
+
+    # --- (c) label propagation using cosine sim ---------------------
+    for lbl, cent in centroids.items():
+        name, sim = identify_speaker(cent, enrol, threshold)
+        if name == "Unknown":
             continue
-        seg_emb = embedding_model(torch.tensor(waveform).unsqueeze(0))
-        seg_emb = seg_emb.detach().cpu().numpy().flatten()
-        speaker, similarity = identify_speaker(seg_emb, known_embeddings)
-        segment["speaker"] = speaker
-        segment["similarity"] = similarity
-        logger.debug(f"Segment {start}-{end}: identified speaker '{speaker}' with similarity {similarity:.2f}.")
+        for seg in segments:
+            if seg["speaker"] == lbl:
+                seg["speaker"] = name
+                seg["similarity"] = float(sim)
+                for w in seg.get("words", []):
+                    w["speaker"] = name
+
+    # remove heavy vectors so the dict is JSON-serialisable
+    for seg in segments:
+        seg.pop("embedding", None)
+
     return output
