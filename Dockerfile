@@ -35,7 +35,7 @@ COPY builder /builder
 
 # Download Faster Whisper Models
 RUN chmod +x /builder/download_models.sh
-RUN --mount=type=secret,id=hf_token /builder/download_models.sh
+#RUN --mount=type=secret,id=hf_token /builder/download_models.sh
 
 # Copy source code
 COPY src .
