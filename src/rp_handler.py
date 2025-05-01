@@ -159,11 +159,11 @@ def run(job):
     # ------------------------------------------------embedding-info----------------
     # 4) speaker verification (optional)
     embeddings = {} # ensure the name is always bound
-    if job_input.get("speaker_verification", False):
+    if job_input.get("speaker_verification", True):
         logger.info(f"Speaker-verification requested: True")
         try:
             embeddings = load_known_speakers_from_samples(
-                speaker_samples,
+                speaker_profiles,
                 huggingface_access_token=predict_input["huggingface_access_token"]
             )
             logger.info(f"  • Enrolled {len(embeddings)} profiles")
