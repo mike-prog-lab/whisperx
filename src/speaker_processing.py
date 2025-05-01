@@ -10,7 +10,7 @@ import librosa
 from pyannote.audio import Inference
 from scipy.spatial.distance import cosine
 import logging
-
+import librosa
 import torch, numpy as np
 from speechbrain.pretrained import EncoderClassifier
 # -----------------------------------------------------------------
@@ -196,7 +196,7 @@ def load_known_speakers_from_samples(speaker_samples,  huggingface_access_token=
     return known_embeddings
 
 
-def identify_speaker(segment_embedding, known_embeddings, threshold=0.75):
+def identify_speaker(segment_embedding, known_embeddings, threshold=0.2):
     import numpy as np
 
     # Ensure 1-D numpy arrays
