@@ -356,7 +356,9 @@ def process_diarized_output(
 
     # ---------- 3) label propagation --------------------------------
     for lbl, centroid in cluster_centroids.items():
-        name, score = identify_speaker(centroid, known_embeddings, threshold=0.40)
+        name, score = identify_speaker(centroid, known_embeddings, threshold=0.
+        
+        I'd also lik e toi 40)
         if name == "Unknown":
             continue
 
