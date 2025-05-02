@@ -172,13 +172,19 @@ def load_known_speakers_from_samples(speaker_samples,  huggingface_access_token=
         # Process the file: load audio and compute embedding.
         try:
             waveform, sr = librosa.load(filepath, sr=16000, mono=True)
-           # Get the raw embedding from pyannote
-            # (optional) L2-normalise so all vectors have unit length
+            # Compute the raw embedding from pyannote
+            emb = model(to_pyannote_dict(waveform, sr))
+            # Convert embedding to a 1-D numpy array
+            if hasattr(emb, "data"):
+                emb_np = np.mean(emb.data, axis=0)
+            else:
+                emb_np = emb.cpu().numpy() if isinstance(emb, torch.Tensor) else np.asarray(emb)
+            # L2-normalize so all vectors have unit length
             emb_np = emb_np / np.linalg.norm(emb_np)
 
             # cache + store
             _SPEAKER_EMBEDDING_CACHE[name] = emb_np
-            known_embeddings[name]           = emb_np
+            known_embeddings[name] = emb_np
 
             logger.debug(
                 f"Computed embedding for '{name}' (norm={np.linalg.norm(emb_np):.2f}).")

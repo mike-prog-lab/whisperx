@@ -1,12 +1,13 @@
 # rp_handler.py
 ######SETTING HF_TOKENT#############
 from speaker_profiles import load_embeddings, relabel  # top of file
+from speaker_processing import process_diarized_output, load_known_speakers_from_samples, identify_speaker
 import os
 import logging
 from huggingface_hub import login, whoami
 import torch
 import numpy as np
-from speaker_processing import process_diarized_output, load_known_speakers_from_samples
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 from speechbrain.pretrained import EncoderClassifier # type: ignore
