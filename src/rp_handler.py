@@ -1,12 +1,21 @@
-# rp_handler.py
-######SETTING HF_TOKENT#############
-from speaker_profiles import load_embeddings, relabel  # top of file
-from speaker_processing import process_diarized_output, load_known_speakers_from_samples, identify_speaker
+# at top of rp_handler.py (or speaker_processing.py)
+from dotenv import load_dotenv, find_dotenv
 import os
+
+# find and load your .env file
+load_dotenv(find_dotenv())
+HF_TOKEN = os.getenv("HF_TOKEN")# 
+
+
+######SETTING HF_TOKENT#############
+
+from speaker_profiles import load_embeddings, relabel  # top of file
+from speaker_processing import process_diarized_output,enroll_profiles, identify_speakers_on_segments, load_known_speakers_from_samples, identify_speaker
 import logging
 from huggingface_hub import login, whoami
 import torch
 import numpy as np
+from dotenv import load_dotenv, find_dotenv
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -31,7 +40,7 @@ if not hf_token.startswith("hf_"):
     print(f"Token malformed or missing 'hf_' prefix. Forcing correction...")
     hf_token = "h" + hf_token  # Force adding the 'h' (temporary fix)
 
-#print(f" Final HF_TOKEN used: #{hf_token}")
+print(f" Final HF_TOKEN used: #{hf_token}")
 if hf_token:
     try:
         logger.debug(f"HF_TOKEN Loaded: {repr(hf_token[:10])}...")  # Show only start of token for security
@@ -118,14 +127,23 @@ def run(job):
         return {"error": f"audio download: {e}"}
 
     # ------------- 2) download speaker profiles (optional) ----------
-    speaker_profiles = job_input.get("speaker_samples", [])   # ← list of dicts
+    speaker_profiles = job_input.get("speaker_samples", [])
+    embeddings = {}
     if speaker_profiles:
         urls = [s.get("url") for s in speaker_profiles if s.get("url")]
         if urls:
-            local_paths = download_files_from_urls(job_id, urls)
-            for s, path in zip(speaker_profiles, local_paths):
-                s["file_path"] = path                       # mutate in-place
-                logger.debug(f"Profile {s.get('name')} → {path}")
+            try:
+                local_paths = download_files_from_urls(job_id, urls)
+                for s, path in zip(speaker_profiles, local_paths):
+                    s["file_path"] = path  # mutate in-place
+                    logger.debug(f"Profile {s.get('name')} → {path}")
+
+                # Now enroll profiles using the updated speaker_profiles with local file paths
+                embeddings = enroll_profiles(speaker_profiles)
+                logger.info(f"Enrolled {len(embeddings)} speaker profiles successfully.")
+            except Exception as e:
+                logger.error("Enrollment failed", exc_info=True)
+                output_dict["warning"] = f"Enrollment skipped: {e}"
     # ----------------------------------------------------------------
 
     # ------------- 3) call WhisperX / VAD / diarization -------------
@@ -159,53 +177,77 @@ def run(job):
     }
     # ------------------------------------------------embedding-info----------------
     # 4) speaker verification (optional)
-    embeddings = {} # ensure the name is always bound
-    if job_input.get("speaker_verification", True):
-        logger.info(f"Speaker-verification requested: True")
+    if embeddings:
         try:
-            embeddings = load_known_speakers_from_samples(
-                speaker_profiles,
-                huggingface_access_token=predict_input["huggingface_access_token"]
+            segments_with_speakers = identify_speakers_on_segments(
+                segments=output_dict["segments"],
+                audio_path=audio_file_path,
+                enrolled=embeddings,
+                threshold=0.1  # Adjust threshold as needed
             )
-            logger.info(f"  • Enrolled {len(embeddings)} profiles")
+            output_dict["segments"] = segments_with_speakers
+            logger.info("Speaker identification completed successfully.")
         except Exception as e:
-            logger.error("Failed loading speaker profiles", exc_info=True)
-            output_dict["warning"] = f"enrollment skipped: {e}"
+            logger.error("Speaker identification failed", exc_info=True)
+            output_dict["warning"] = f"Speaker identification skipped: {e}"
+    else:
+        logger.info("No enrolled embeddings available; skipping speaker identification.")
 
-        if embeddings:  # only attempt verification if we actually got something
-            try:
-                output_dict = process_diarized_output(
-                    output_dict,
-                    audio_file_path,
-                    embeddings,
-                    huggingface_access_token=predict_input["huggingface_access_token"]
-                )
-            except Exception as e:
-                logger.error("Error during speaker verification", exc_info=True)
-                output_dict["warning"] = f"verification skipped: {e}"
-        else:
-            logger.info("No embeddings to verify against; skipping verification step")
-    
-    
-    # sv = bool(job_input.get("speaker_verification", False))
-    # logger.info(f"Speaker-verification requested: {sv}")
-    # if sv and speaker_profiles:
-    #     try:
-    #         logger.info(f"  • Enrolling {len(speaker_profiles)} profiles")
-
-
-
-    # 5) cleanup
+    # 4-Cleanup and return output_dict normally
     try:
         rp_cleanup.clean(["input_objects"])
         cleanup_job_files(job_id)
     except Exception as e:
         logger.warning(f"Cleanup issue: {e}", exc_info=True)
 
-    finally:
-        if error_log:
-            output["error_log"] = "\n".join(error__log)             # if you have any errors, attach them to the output
-            
     return output_dict
 
 runpod.serverless.start({"handler": run})
+
+
+#     embeddings = {} # ensure the name is always bound
+#     if job_input.get("speaker_verification", True):
+#         logger.info(f"Speaker-verification requested: True")
+#         try:
+#             embeddings = load_known_speakers_from_samples(
+#                 speaker_profiles,
+#                 huggingface_access_token=predict_input["huggingface_access_token"]
+#             )
+#             logger.info(f"  • Enrolled {len(embeddings)} profiles")
+#         except Exception as e:
+#             logger.error("Failed loading speaker profiles", exc_info=True)
+#             output_dict["warning"] = f"enrollment skipped: {e}"
+
+#         embedding_log_data = None  # Initialize here to avoid UnboundLocalError
+
+#         if embeddings:  # only attempt verification if we actually got something
+#             try:
+#                 output_dict, embedding_log_data = process_diarized_output(
+#                     output_dict,
+#                     audio_file_path,
+#                     embeddings,
+#                     huggingface_access_token=job_input.get("huggingface_access_token"),
+#                     return_logs=False # <-- set to True for debugging
+#             except Exception as e:
+#                 logger.error("Error during speaker verification", exc_info=True)
+#                 output_dict["warning"] = f"verification skipped: {e}"
+#         else:
+#             logger.info("No embeddings to verify against; skipping verification step")
+
+#     if embedding_log_data:
+#         output_dict["embedding_logs"] = embedding_log_data
+
+#     # 5) cleanup
+#     try:
+#         rp_cleanup.clean(["input_objects"])
+#         cleanup_job_files(job_id)
+#     except Exception as e:
+#         logger.warning(f"Cleanup issue: {e}", exc_info=True)
+
+#         # If you have any errors, attach them to the output
+#     if error_log:
+#         output_dict["error_log"] = "\n".join(error_log)
+
+#     return output_dict
+
+# runpod.serverless.start({"handler": run})

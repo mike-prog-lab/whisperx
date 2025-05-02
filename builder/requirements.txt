@@ -18,7 +18,7 @@ scipy
 librosa==0.11.0
 huggingface-hub==0.29.3
 cryptography<43.0.0
-
+python-dotenv
 # ---------- runpod / cog ----------
 # Latest runpod (≥2.x) supports Python 3.10 / 3.11
 runpod                              # leave un-pinned -> pulls 2.x
