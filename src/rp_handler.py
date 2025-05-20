@@ -10,7 +10,7 @@ HF_TOKEN = os.getenv("HF_TOKEN")#
 ######SETTING HF_TOKENT#############
 
 from speaker_profiles import load_embeddings, relabel  # top of file
-from speaker_processing import process_diarized_output,enroll_profiles, identify_speakers_on_segments, load_known_speakers_from_samples, identify_speaker
+from speaker_processing import process_diarized_output,enroll_profiles, identify_speakers_on_segments, load_known_speakers_from_samples, identify_speaker, relabel_speakers_by_avg_similarity
 import logging
 from huggingface_hub import login, whoami
 import torch
@@ -40,7 +40,7 @@ if not hf_token.startswith("hf_"):
     print(f"Token malformed or missing 'hf_' prefix. Forcing correction...")
     hf_token = "h" + hf_token  # Force adding the 'h' (temporary fix)
 
-print(f" Final HF_TOKEN used: #{hf_token}")
+#print(f" Final HF_TOKEN used: #{hf_token}")
 if hf_token:
     try:
         logger.debug(f"HF_TOKEN Loaded: {repr(hf_token[:10])}...")  # Show only start of token for security
@@ -130,20 +130,29 @@ def run(job):
     speaker_profiles = job_input.get("speaker_samples", [])
     embeddings = {}
     if speaker_profiles:
-        urls = [s.get("url") for s in speaker_profiles if s.get("url")]
-        if urls:
-            try:
-                local_paths = download_files_from_urls(job_id, urls)
-                for s, path in zip(speaker_profiles, local_paths):
-                    s["file_path"] = path  # mutate in-place
-                    logger.debug(f"Profile {s.get('name')} → {path}")
+        try:
+            embeddings = load_known_speakers_from_samples(
+                speaker_profiles,
+                huggingface_access_token=hf_token  # or job_input.get("huggingface_access_token")
+            )
+            logger.info(f"Enrolled {len(embeddings)} speaker profiles successfully.")
+        except Exception as e:
+            logger.error("Enrollment failed", exc_info=True)
+            output_dict["warning"] = f"Enrollment skipped: {e}"
+        # urls = [s.get("url") for s in speaker_profiles if s.get("url")]
+        # if urls:
+        #     try:
+        #         local_paths = download_files_from_urls(job_id, urls)
+        #         for s, path in zip(speaker_profiles, local_paths):
+        #             s["file_path"] = path  # mutate in-place
+        #             logger.debug(f"Profile {s.get('name')} → {path}")
 
-                # Now enroll profiles using the updated speaker_profiles with local file paths
-                embeddings = enroll_profiles(speaker_profiles)
-                logger.info(f"Enrolled {len(embeddings)} speaker profiles successfully.")
-            except Exception as e:
-                logger.error("Enrollment failed", exc_info=True)
-                output_dict["warning"] = f"Enrollment skipped: {e}"
+        #         # Now enroll profiles using the updated speaker_profiles with local file paths
+        #         embeddings = enroll_profiles(speaker_profiles)
+        #         logger.info(f"Enrolled {len(embeddings)} speaker profiles successfully.")
+        #     except Exception as e:
+        #         logger.error("Enrollment failed", exc_info=True)
+        #         output_dict["warning"] = f"Enrollment skipped: {e}"
     # ----------------------------------------------------------------
 
     # ------------- 3) call WhisperX / VAD / diarization -------------
@@ -185,7 +194,9 @@ def run(job):
                 enrolled=embeddings,
                 threshold=0.1  # Adjust threshold as needed
             )
-            output_dict["segments"] = segments_with_speakers
+            #output_dict["segments"] = segments_with_speakers
+            segments_with_final_labels = relabel_speakers_by_avg_similarity(segments_with_speakers)
+            output_dict["segments"] = segments_with_final_labels
             logger.info("Speaker identification completed successfully.")
         except Exception as e:
             logger.error("Speaker identification failed", exc_info=True)

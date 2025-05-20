@@ -242,9 +242,6 @@ def identify_speaker(segment_embedding, known_embeddings, threshold=0.1):
     If no match exceeds the threshold, returns "Unknown" and the best similarity.
     """
 
-from collections import defaultdict
-from pyannote.core import SlidingWindowFeature
-
 
 import torch
 import librosa
@@ -383,7 +380,7 @@ def process_diarized_output(
     if return_logs:
         return output, log_data
     else:
-        return output, None
+        return output, log_data
 
 
 
@@ -422,7 +419,7 @@ def identify_speakers_on_segments(
     segments: list[dict],
     audio_path: str,
     enrolled: dict[str, np.ndarray],
-    threshold: float = 0.5
+    threshold: float = 0.1
 ) -> list[dict]:
     """
     Identify speakers on diarized segments using enrolled embeddings.
@@ -448,233 +445,35 @@ def identify_speakers_on_segments(
     return segments
 
 
+def relabel_speakers_by_avg_similarity(segments: list[dict]) -> list[dict]:
+    """
+    For each original diarized speaker label, assign the most likely speaker_id
+    based on the highest average similarity across segments.
+    Updates segments in-place: sets final 'speaker' name accordingly.
+    """
+    # Step 1: collect all similarities per diarized label
+    grouped = defaultdict(list)
+    for seg in segments:
+        spk = seg.get("speaker")
+        sim = seg.get("similarity")
+        sid = seg.get("speaker_id")
+        if spk and sim is not None and sid:
+            grouped[spk].append((sid, sim))
 
+    # Step 2: compute average similarity for each speaker_id within each group
+    relabel_map = {}
+    for orig_spk, samples in grouped.items():
+        scores = defaultdict(list)
+        for sid, sim in samples:
+            scores[sid].append(sim)
+        avg = {sid: sum(vals)/len(vals) for sid, vals in scores.items()}
+        best_match = max(avg, key=avg.get)
+        relabel_map[orig_spk] = best_match
 
+    # Step 3: apply relabeling
+    for seg in segments:
+        spk = seg.get("speaker")
+        if spk in relabel_map:
+            seg["speaker"] = relabel_map[spk]
 
-
-# def process_diarized_output(
-#     output: dict,
-#     audio_filepath: str,
-#     known_embeddings: dict,
-#     huggingface_access_token: str | None = None,
-#     return_logs=True,  # Add this parameter
-#     threshold: float = 0.20,
-#     tuple[dict, dict | None]:
-#         log_data = {
-#         "segments": [],
-#         "centroids": {},
-#         "relabeling_decisions": [],
-#         "timestamp": datetime.now().isoformat()
-# ) -> dict:
-#     """
-#     1) Embed each diarized segment
-#     2) Build a centroid per diarization label
-#     3) Relabel any cluster whose centroid matches a known speaker
-#     4) Clean up all temporary fields and ensure JSON-friendly types
-#     """
-
-#     }
-
-#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#     embedder = Inference("pyannote/embedding", use_auth_token=huggingface_access_token, device=device)
-
-#     segments = output.get("segments", [])
-#     if not segments:
-#         return output
-
-#     # 1) embed each diarized segment
-#     for seg in segments:
-#         # ensure every segment has a speaker key
-#         seg.setdefault("speaker", "Unknown")
-
-#         start, end = seg["start"], seg["end"]
-#         try:
-#             wav, _ = librosa.load(audio_filepath, sr=16000, mono=True,
-#                                   offset=start, duration=end - start)
-#         except Exception as e:
-#             logger.error(f"Could not load [{start:.2f}-{end:.2f}]: {e}", exc_info=True)
-#             continue
-#         if wav.size == 0:
-#             continue
-
-#         # compute embedding (this returns a numpy array or SlidingWindowFeature)
-#         emb = embedder({"waveform": torch.tensor(wav)[None], "sample_rate": 16000})
-#         # convert to flat numpy
-#         if hasattr(emb, "data"):
-#             emb = emb.data.mean(axis=0)
-#         emb = emb.cpu().numpy() if isinstance(emb, torch.Tensor) else np.asarray(emb)
-#         emb = emb.flatten().astype(np.float32)
-#         # L2-normalize
-#         emb = emb / np.linalg.norm(emb)
-#         seg["__embed__"] = emb
-
-#     # 2) build cluster centroids
-#     clusters: dict[str, list[np.ndarray]] = defaultdict(list)
-#     for seg in segments:
-#         clusters[seg["speaker"]].append(seg["__embed__"])
-
-#     centroids = {
-#         lbl: np.mean(mats, axis=0)
-#               / np.linalg.norm(np.mean(mats, axis=0))
-#         for lbl, mats in clusters.items()
-#         if mats
-#     }
-
-#     # 3) relabel
-#     for lbl, centroid in centroids.items():
-#         log_data["centroids"][lbl] = centroid.tolist(
-#         name, score = identify_speaker(centroid, known_embeddings, threshold=threshold)
-#         decision = {
-#             "original_label": lbl,
-#             "new_label": name,
-#             "similarity_score": float(score),
-#             "threshold": threshold,
-#             "relabel": name != "Unknown"
-#         }
-#         log_data["relabeling_decisions"].append(decision)
-#         if name == "Unknown":
-#             continue
-#         # propagate label & similarity
-#         for seg in segments:
-#             if seg["speaker"] == lbl:
-#                 seg["speaker"]    = name
-#                 seg["similarity"] = float(score)
-
-#     # 4) drop embeddings and ensure JSON-safe
-#     for seg in segments:
-#         seg.pop("__embed__", None)
-#         # ensure start/end are floats
-#         seg["start"] = float(seg["start"])
-#         seg["end"  ] = float(seg["end"])
-#         # similarity may be missing
-#         if "similarity" not in seg:
-#             seg["similarity"] = None
-            
-#      # Save log data to JSON file
-#     # Instead of writing to file, return log data directly if requested
-#     if return_logs:
-#         return output, log_data
-#     else:
-#         return output, None
-
-
-#     for segment in segments:
-#         start, end = segment["start"], segment["end"]
-#         duration = end - start
-#         try:
-#             wav16, _ = librosa.load(
-#                 audio_filepath, sr=16000, mono=True, offset=start, duration=duration
-#             )
-#         except Exception as exc:
-#             logger.error(
-#                 f"Could not load {audio_filepath} [{start:.2f}–{end:.2f}s]: {exc}",
-#                 exc_info=True,
-#             )
-#             continue
-#         if wav16.size == 0:
-#             continue
-
-#         emb = spk_embed(wav16)                       # 192-d ECAPA numpy array
-#         if isinstance(emb, SlidingWindowFeature):    # safety  should not happen with ECAPA
-#             emb = emb.data.mean(axis=0)
-
-#         segment["embedding"] = emb / np.linalg.norm(emb)
-
-#     # ---------- 2) centroid per diarization label --------------------
-#     cluster_embs: dict[str, np.ndarray] = defaultdict(list)
-#     for seg in segments:
-#         cluster_embs[seg["speaker"]].append(seg["embedding"])
-
-#     cluster_centroids = {
-#         lbl: np.mean(v, axis=0) / np.linalg.norm(np.mean(v, axis=0))
-#         for lbl, v in cluster_embs.items()
-#     }
-
-#     # ---------- 3) label propagation --------------------------------
-#     for lbl, centroid in cluster_centroids.items():
-#         name, score = identify_speaker(centroid, known_embeddings, threshold=0.1.
-        
-#         decision = {
-#             "original_label": lbl,
-#             "new_label": name,
-#             "similarity_score": float(score),
-#             "threshold": threshold,
-#             "relabel": name != "Unknown"
-#         }
-#         if name == "Unknown":
-#             continue
-
-#         # propagate to every segment (+optional word-level)
-#         for seg in segments:
-#             if seg["speaker"] != lbl:
-#                 continue
-#             seg["speaker"] = name
-#             seg["similarity"] = float(best_similarity)
-#             if "words" in seg:                          # word-level tags
-#                 for w in seg["words"]:
-#                     w["speaker"] = name
-
-#     # embeddings are heavy  drop them before returning
-#     for seg in segments:
-#         seg.pop("embedding", None)
-
-#     return output
-
-
-
-
-
-
-
-
-# def process_diarized_output(output, audio_filepath, known_embeddings, huggingface_access_token=None):
-#     """
-#     For each diarized segment in the output, extract its audio from the given audio file,
-#     compute its embedding, and update the segment's speaker label using known_embeddings.
-#     """
-#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#     embedding_model = Inference("pyannote/embedding", use_auth_token=huggingface_access_token, device=device)
-    
-#     segments = output.get("segments", [])
-#     for segment in segments:
-#         start = segment.get("start")
-#         end = segment.get("end")
-#         duration = end - start
-#         try:
-#             waveform, _ = librosa.load(audio_filepath, sr=16000, mono=True, offset=start, duration=duration)
-#         except Exception as e:
-#             logger.error(f"Failed to load audio segment from {audio_filepath} for {start}-{end}: {e}", exc_info=True)
-#             continue
-#         if len(waveform) == 0:
-#             logger.warning(f"Empty waveform for segment {start}-{end} in file {audio_filepath}.")
-#             continue
-
-#         #seg_emb = embedding_model(to_pyannote_dict(waveform, 16000))
-#         seg_emb = spk_embed(waveform)          # one vector per segment
-#         seg["embedding"] = seg_emb        
-#         from pyannote.core import SlidingWindowFeature
-#         if isinstance(seg_emb, SlidingWindowFeature):
-#             seg_emb = seg_emb.data.mean(axis=0)
-        
-#         seg_emb = to_numpy(seg_emb)
-#         #seg_emb = seg_emb.detach().cpu().numpy().flatten()
-
-# cluster_embs = defaultdict(list)
-# for seg in segments:
-#     cluster_embs[seg["speaker"]].append(seg["embedding"])
-# cluster_embs = {k: np.mean(v, axis=0) / np.linalg.norm(np.mean(v, axis=0))
-#                 for k, v in cluster_embs.items()}
-
-# for spk_lbl, centroid in cluster_embs.items():
-#     name, score = identify_speaker(centroid, known_embeddings, threshold=0.4)
-#     if name != "Unknown":
-#         for seg in segments:
-#             if seg["speaker"] == spk_lbl:
-#                 seg["speaker"] = name
-#                 seg["similarity"] = float(score)
-
-#         speaker, similarity = identify_speaker(seg_emb, known_embeddings)
-#         segment["speaker"] = speaker
-#         segment["similarity"] = similarity
-#         logger.debug(f"Segment {start}-{end}: identified speaker '{speaker}' with similarity {similarity:.2f}.")
-#     return output
+    return segments
