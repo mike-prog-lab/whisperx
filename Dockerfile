@@ -10,6 +10,7 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# In your Dockerfile
 # Create cache directory
 RUN mkdir -p /cache/models
 
@@ -20,8 +21,11 @@ RUN mkdir -p /root/.cache/torch
 COPY builder/requirements.txt /builder/requirements.txt
 
 # Install Python dependencies (Worker Template)
-RUN python3 -m pip install --upgrade pip hf_transfer && \
-    python3 -m pip install -r /builder/requirements.txt
+#RUN python3 -m pip install --upgrade pip hf_transfer && \
+#    python3 -m pip install -r /builder/requirements.txt
+RUN python3 -m pip install --upgrade pip \
+ && python3 -m pip install hf_transfer==0.1.4 \ 
+ && python3 -m pip install --no-cache-dir -r /builder/requirements.txt
 
 # Copy the local VAD model to the expected location
 COPY models/whisperx-vad-segmentation.bin /root/.cache/torch/whisperx-vad-segmentation.bin
@@ -31,8 +35,8 @@ COPY builder /builder
 
 # Download Faster Whisper Models
 RUN chmod +x /builder/download_models.sh
-RUN /builder/download_models.sh
-
+RUN --mount=type=secret,id=hf_token /builder/download_models.sh
+#RUN pip install azure-storage-blob
 # Copy source code
 COPY src .
 

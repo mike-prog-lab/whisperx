@@ -4,7 +4,7 @@
   "type": "serverless",
   "category": "audio",
   "iconUrl": "https://blog.madiator.com/pictures/favicon.png",
-  "tags": ["speech-to-text", "transcription", "whisper", "diarization", "audio"],
+  "tags": ["speech-to-text", "transcription", "whisper", "diarization", "audio", "speaker identification"],
   "config": {
     "runsOn": "GPU",
     "containerDiskInGb": 30,
@@ -20,6 +20,10 @@
       {
         "name": "Transcription with Diarization",
         "description": "Full transcription with speaker identification"
+      },
+      {
+        "name": "Speaker Identification",
+        "description": "Selective speaker identification for audio files"
       }
     ]
   },

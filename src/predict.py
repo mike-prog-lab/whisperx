@@ -1,8 +1,13 @@
-from cog import BasePredictor, Input, Path, BaseModel
+#from cog import BasePredictor, Input, Path, BaseModel
+try:
+    # Prefer real cog if present (e.g. when running locally)
+    from cog import BasePredictor, Input, Path, BaseModel
+except ImportError:                          # pragma: no cover
+    from cog_stub import BasePredictor, Input, Path, BaseModel
 from pydub import AudioSegment
 from typing import Any
 from whisperx.audio import N_SAMPLES, log_mel_spectrogram
-
+from scipy.spatial.distance import cosine
 import gc
 import math
 import os
@@ -11,6 +16,32 @@ import whisperx
 import tempfile
 import time
 import torch
+import speaker_processing
+
+
+import logging
+import sys
+logger = logging.getLogger("predict")
+logger.setLevel(logging.DEBUG)
+
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.DEBUG)
+console_formatter = logging.Formatter(
+    "%(asctime)s %(levelname)s [%(name)s]: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+)
+console_handler.setFormatter(console_formatter)
+
+file_handler = logging.FileHandler("container_log.txt", mode="a")
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(console_formatter)
+
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
+
+
+
+
+
 
 torch.backends.cudnn.allow_tf32 = True
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -89,7 +120,16 @@ class Predictor(BasePredictor):
                 default=None),
             debug: bool = Input(
                 description="Print out compute/inference times and memory usage information",
-                default=False)
+                default=False),
+            speaker_verification: bool = Input(
+                description="Enable speaker verification",
+                default=False),
+            speaker_samples: list = Input(
+                description="List of speaker samples for verification. Each sample should be a dict with 'url' and "
+                            "optional 'name' and 'file_path'. If 'name' is not provided, the file name (without "
+                            "extension) is used. If 'file_path' is provided, it will be used directly.",
+                default=[]
+            )
     ) -> Output:
         with torch.inference_mode():
             asr_options = {
@@ -178,6 +218,7 @@ class Predictor(BasePredictor):
 
 
 def get_audio_duration(file_path):
+    
     return len(AudioSegment.from_file(file_path))
 
 
@@ -297,3 +338,21 @@ def diarize(audio, result, debug, huggingface_access_token, min_speakers, max_sp
     del diarize_model
 
     return result
+
+def identify_speaker_for_segment(segment_embedding, known_embeddings, threshold=0.1):
+    """
+    Compare segment_embedding to known speaker embeddings using cosine similarity.
+    Returns the speaker name with the highest similarity above the threshold,
+    or "Unknown" if none match.
+    """
+    best_match = "Unknown"
+    best_similarity = -1
+    for speaker, known_emb in known_embeddings.items():
+        similarity = 1 - cosine(segment_embedding, known_emb)
+        if similarity > best_similarity:
+            best_similarity = similarity
+            best_match = speaker
+    if best_similarity >= threshold:
+        return best_match, best_similarity
+    else:
+        return "Unknown", best_similarity
