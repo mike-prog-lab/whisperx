@@ -72,5 +72,15 @@ INPUT_VALIDATIONS = {
         'type': bool,
         'required': False,
         'default': False
+    },
+    'speaker_verification': {
+        'type': bool,
+        'required': False,
+        'default': False
+    },
+    'speaker_samples': {
+        'type': list,
+        'required': False,
+        'default': []
     }
 }

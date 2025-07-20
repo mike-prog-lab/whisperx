@@ -33,6 +33,7 @@ A serverless worker that provides high-quality speech transcription with timesta
 | `min_speakers` | int | No | `null` | Minimum number of speakers (only applicable if diarization is enabled) |
 | `max_speakers` | int | No | `null` | Maximum number of speakers (only applicable if diarization is enabled) |
 | `debug` | bool | No | `false` | Whether to print compute/inference times and memory usage information |
+| `speaker_samples` | list | No | `[]` | List of speaker sample objects for speaker diarization |
 
 ## Usage Examples
 
@@ -77,7 +78,37 @@ A serverless worker that provides high-quality speech transcription with timesta
   }
 }
 ```
-
+### Full Configuration with Speaker Verification. There is no limit to the number of voice you can upload,  but precision maybe be reduced over a certain threshold
+```json
+  "input": {
+    "audio_file": "https://example.com/audio/sample.mp3",
+    "language": "en",
+    "batch_size": 32,
+    "temperature": 0.2,
+    "align_output": true,
+    "diarization": true,
+    "huggingface_access_token": "YOUR_HUGGINGFACE_TOKEN",
+    "min_speakers": 2,
+    "max_speakers": 5,
+    "debug": true,
+    "speaker_verification": true,
+    "speaker_samples": [
+      {
+        "name": "Speaker1",
+        "url": "https://example.com/speaker1.wav"
+      },
+      {
+        "name": "Speaker2",
+        "url": "https://example.com/speaker2.wav"
+      },
+      {
+        "name": "Speaker3",
+        "url": "https://example.com/speaker3.wav"
+      }
+      ...
+    ]
+  }
+}
 ## Output Format
 
 The service returns a JSON object structured as follows:
