@@ -42,7 +42,7 @@ A serverless worker that provides high-quality speech transcription with timesta
 ```json
 {
   "input": {
-    "audio_file": "https://example.com/audio/sample.mp3"
+    "audio_file": "https://github.com/runpod-workers/sample-inputs/raw/main/audio/gettysburg.wav"
   }
 }
 ```
@@ -52,7 +52,7 @@ A serverless worker that provides high-quality speech transcription with timesta
 ```json
 {
   "input": {
-    "audio_file": "https://example.com/audio/sample.mp3",
+    "audio_file": "https://github.com/runpod-workers/sample-inputs/raw/main/audio/gettysburg.wav",
     "align_output": true,
     "batch_size": 32,
     "debug": true
@@ -65,7 +65,7 @@ A serverless worker that provides high-quality speech transcription with timesta
 ```json
 {
   "input": {
-    "audio_file": "https://example.com/audio/sample.mp3",
+    "audio_file": "https://github.com/runpod-workers/sample-inputs/raw/main/audio/gettysburg.wav",
     "language": "en",
     "batch_size": 32,
     "temperature": 0.2,
