@@ -7,7 +7,7 @@ torchaudio==2.1.0+cu121
 whisperx @ git+https://github.com/m-bain/whisperx.git
 pyannote.audio==3.1.1                # embedded/diarization
 speechbrain==0.5.16                  # ECAPA embedding that whisperx uses
-ctranslate2==4.3.1                   # used by whisperx
+ctranslate2>=4.5.0                   # whisperx 3.8.0 requires >=4.5.0, needs cuDNN 9
 # ---------- speechbrain dependencies ----------
 sentencepiece
 # ---------- utilities ----------
