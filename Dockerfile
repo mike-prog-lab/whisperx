@@ -24,7 +24,7 @@ COPY builder/requirements.txt /builder/requirements.txt
 #RUN python3 -m pip install --upgrade pip hf_transfer && \
 #    python3 -m pip install -r /builder/requirements.txt
 RUN python3 -m pip install --upgrade pip \
- && python3 -m pip install hf_transfer==0.1.4 \ 
+ && python3 -m pip install hf_transfer==0.1.4 \
  && python3 -m pip install --no-cache-dir -r /builder/requirements.txt
 
 # Copy the local VAD model to the expected location
