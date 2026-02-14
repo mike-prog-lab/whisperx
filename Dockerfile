@@ -28,6 +28,7 @@ COPY builder/requirements.txt /builder/requirements.txt
 RUN echo "setuptools<81" > /tmp/build-constraints.txt \
  && python3 -m pip install --upgrade pip \
  && python3 -m pip install hf_transfer==0.1.4 "setuptools<81" \
+ && python3 -m pip install --only-binary=av av \
  && python3 -m pip install --no-cache-dir --build-constraint /tmp/build-constraints.txt -r /builder/requirements.txt
 
 # Copy the local VAD model to the expected location
