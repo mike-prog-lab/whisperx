@@ -26,13 +26,15 @@ COPY builder/requirements.txt /builder/requirements.txt
 RUN echo "setuptools<81" > /tmp/build-constraints.txt \
  && python3 -m pip install --upgrade pip \
  && python3 -m pip install hf_transfer==0.1.4 "setuptools<81" \
- && apt-get update && apt-get install -y --no-install-recommends \
+ && apt-get update && apt-get install -y \
         libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev \
         libavfilter-dev libswscale-dev libswresample-dev pkg-config \
+ && echo "=== debug: searching for .pc files ===" \
+ && find / -name "libavformat.pc" 2>/dev/null || echo "NO .pc files found" \
+ && pkg-config --list-all 2>/dev/null | grep -i av || echo "NO av in pkg-config" \
+ && export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH:-}" \
  && python3 -m pip install --no-cache-dir --build-constraint /tmp/build-constraints.txt -r /builder/requirements.txt \
- && apt-get purge -y libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev \
-        libavfilter-dev libswscale-dev libswresample-dev \
- && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/*
 
 # Copy the local VAD model to the expected location
 COPY models/whisperx-vad-segmentation.bin /root/.cache/torch/whisperx-vad-segmentation.bin
