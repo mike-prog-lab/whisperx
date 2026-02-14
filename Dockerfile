@@ -6,7 +6,9 @@ WORKDIR /
 # Update and upgrade the system packages (Worker Template)
 RUN apt-get update && \
     apt-get upgrade -y && \
-    apt-get install -y ffmpeg wget git libcudnn8 libcudnn8-dev && \
+    apt-get install -y ffmpeg wget git libcudnn8 libcudnn8-dev \
+        libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev \
+        libavfilter-dev libswscale-dev libswresample-dev pkg-config && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
