@@ -6,9 +6,7 @@ WORKDIR /
 # Update and upgrade the system packages (Worker Template)
 RUN apt-get update && \
     apt-get upgrade -y && \
-    apt-get install -y ffmpeg wget git libcudnn8 libcudnn8-dev \
-        libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev \
-        libavfilter-dev libswscale-dev libswresample-dev pkg-config && \
+    apt-get install -y ffmpeg wget git libcudnn8 libcudnn8-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -28,8 +26,13 @@ COPY builder/requirements.txt /builder/requirements.txt
 RUN echo "setuptools<81" > /tmp/build-constraints.txt \
  && python3 -m pip install --upgrade pip \
  && python3 -m pip install hf_transfer==0.1.4 "setuptools<81" \
- && python3 -m pip install --only-binary=av av \
- && python3 -m pip install --no-cache-dir --build-constraint /tmp/build-constraints.txt -r /builder/requirements.txt
+ && apt-get update && apt-get install -y --no-install-recommends \
+        libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev \
+        libavfilter-dev libswscale-dev libswresample-dev pkg-config \
+ && python3 -m pip install --no-cache-dir --build-constraint /tmp/build-constraints.txt -r /builder/requirements.txt \
+ && apt-get purge -y libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev \
+        libavfilter-dev libswscale-dev libswresample-dev \
+ && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
 # Copy the local VAD model to the expected location
 COPY models/whisperx-vad-segmentation.bin /root/.cache/torch/whisperx-vad-segmentation.bin
