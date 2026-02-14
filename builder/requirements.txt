@@ -4,24 +4,18 @@ torch==2.1.0+cu121
 torchaudio==2.1.0+cu121
 
 # ---------- main libs ----------
+# whisperx pulls in: numpy, ctranslate2, etc. — don't pin those separately
 whisperx @ git+https://github.com/m-bain/whisperx.git
 pyannote.audio==3.1.1                # embedded/diarization
 speechbrain==0.5.16                  # ECAPA embedding that whisperx uses
-ctranslate2>=4.5.0                   # whisperx 3.8.0 requires >=4.5.0, needs cuDNN 9
 # ---------- speechbrain dependencies ----------
 sentencepiece
 # ---------- utilities ----------
 pydub
-numpy==1.24.2                        # CUDA 12.1 compatible
 scipy
 librosa==0.11.0
 huggingface-hub==0.29.3
 runpod==1.7.13
 cog
-speechbrain==0.5.16
 cryptography<43.0.0
 python-dotenv
-# ---------- runpod / cog ----------
-# Latest runpod (s2.x) supports Python 3.10 / 3.11
-runpod
-# "cog" is **only** needed in local dev; drop it in container
