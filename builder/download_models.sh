@@ -28,18 +28,19 @@ download() {
 }
 
 # ===============================
-# Download Faster Whisper Model
+# Download Faster Whisper Model (Ukrainian fine-tuned, CT2 format)
 # ===============================
-faster_whisper_model_dir="${MODELS_DIR}/faster-whisper-large-v3"
+HF_REPO="kryvokhyzha/whisper-large-v3-turbo-ukrainian-ukraine-3percent-ct2"
+faster_whisper_model_dir="${MODELS_DIR}/faster-whisper-large-v3-turbo-uk"
 mkdir -p "$faster_whisper_model_dir"
 
-download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/config.json"              "$faster_whisper_model_dir/config.json"
-download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/model.bin"              "$faster_whisper_model_dir/model.bin"
-download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/preprocessor_config.json" "$faster_whisper_model_dir/preprocessor_config.json"
-download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/tokenizer.json"          "$faster_whisper_model_dir/tokenizer.json"
-download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/vocabulary.json"         "$faster_whisper_model_dir/vocabulary.json"
+download "https://huggingface.co/${HF_REPO}/resolve/main/config.json"              "$faster_whisper_model_dir/config.json"
+download "https://huggingface.co/${HF_REPO}/resolve/main/model.bin"                "$faster_whisper_model_dir/model.bin"
+download "https://huggingface.co/${HF_REPO}/resolve/main/preprocessor_config.json" "$faster_whisper_model_dir/preprocessor_config.json"
+download "https://huggingface.co/${HF_REPO}/resolve/main/vocabulary.json"          "$faster_whisper_model_dir/vocabulary.json"
+download "https://huggingface.co/${HF_REPO}/resolve/main/tokenizer_config.json"    "$faster_whisper_model_dir/tokenizer_config.json"
 
-echo "Faster Whisper model downloaded."
+echo "Faster Whisper Ukrainian model downloaded."
 
 # ===================================
 # VAD and wav2vec2 are Docker-handled

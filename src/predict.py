@@ -47,7 +47,7 @@ torch.backends.cudnn.allow_tf32 = True
 torch.backends.cuda.matmul.allow_tf32 = True
 compute_type = "float16"  # change to "int8" if low on GPU mem (may reduce accuracy)
 device = "cuda"
-whisper_arch = "./models/faster-whisper-large-v3"
+whisper_arch = "./models/faster-whisper-large-v3-turbo-uk"
 
 
 class Output(BaseModel):
@@ -69,6 +69,30 @@ class Predictor(BasePredictor):
 
             if not os.path.exists(destination_file_path):
                 shutil.copy(source_file_path, destination_folder)
+
+        # Pre-load diarization pipeline into VRAM
+        logger.info("Loading diarization model into VRAM...")
+        self.diarize_model = whisperx.DiarizationPipeline(
+            model_name='pyannote/speaker-diarization@2.1',
+            use_auth_token=os.environ.get("HF_TOKEN", "").strip(),
+            device=device,
+        )
+        logger.info("Diarization model loaded.")
+
+    def _diarize(self, audio, result, debug, min_speakers, max_speakers):
+        """Diarize using the pre-loaded model kept in VRAM."""
+        start_time = time.time_ns() / 1e6
+
+        diarize_segments = self.diarize_model(
+            audio, min_speakers=min_speakers, max_speakers=max_speakers
+        )
+        result = whisperx.assign_word_speakers(diarize_segments, result)
+
+        if debug:
+            elapsed_time = time.time_ns() / 1e6 - start_time
+            print(f"Duration to diarize segments: {elapsed_time:.2f} ms")
+
+        return result
 
     def predict(
             self,
@@ -195,6 +219,7 @@ class Predictor(BasePredictor):
                 elapsed_time = time.time_ns() / 1e6 - start_time
                 print(f"Duration to transcribe: {elapsed_time:.2f} ms")
 
+            # Free whisper model VRAM before loading align/diarize models
             gc.collect()
             torch.cuda.empty_cache()
             del model
@@ -206,7 +231,7 @@ class Predictor(BasePredictor):
                     print(f"Cannot align output as language {detected_language} is not supported for alignment")
 
             if diarization:
-                result = diarize(audio, result, debug, huggingface_access_token, min_speakers, max_speakers)
+                result = self._diarize(audio, result, debug, min_speakers, max_speakers)
 
             if debug:
                 print(f"max gpu memory allocated over runtime: {torch.cuda.max_memory_reserved() / (1024 ** 3):.2f} GB")
@@ -321,6 +346,7 @@ def align(audio, result, debug):
 
 
 def diarize(audio, result, debug, huggingface_access_token, min_speakers, max_speakers):
+    """Legacy standalone diarize — loads model from scratch each call."""
     start_time = time.time_ns() / 1e6
 
     diarize_model = whisperx.DiarizationPipeline(model_name='pyannote/speaker-diarization@2.1',
