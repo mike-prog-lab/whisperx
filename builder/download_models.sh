@@ -39,6 +39,11 @@ download "https://huggingface.co/${HF_REPO}/resolve/main/model.bin"             
 download "https://huggingface.co/${HF_REPO}/resolve/main/preprocessor_config.json" "$faster_whisper_model_dir/preprocessor_config.json"
 download "https://huggingface.co/${HF_REPO}/resolve/main/vocabulary.json"          "$faster_whisper_model_dir/vocabulary.json"
 download "https://huggingface.co/${HF_REPO}/resolve/main/tokenizer_config.json"    "$faster_whisper_model_dir/tokenizer_config.json"
+download "https://huggingface.co/${HF_REPO}/resolve/main/added_tokens.json"        "$faster_whisper_model_dir/added_tokens.json"
+download "https://huggingface.co/${HF_REPO}/resolve/main/special_tokens_map.json"  "$faster_whisper_model_dir/special_tokens_map.json"
+download "https://huggingface.co/${HF_REPO}/resolve/main/normalizer.json"          "$faster_whisper_model_dir/normalizer.json"
+download "https://huggingface.co/${HF_REPO}/resolve/main/merges.txt"               "$faster_whisper_model_dir/merges.txt"
+download "https://huggingface.co/${HF_REPO}/resolve/main/vocab.json"               "$faster_whisper_model_dir/vocab.json"
 
 echo "Faster Whisper Ukrainian model downloaded."
 
