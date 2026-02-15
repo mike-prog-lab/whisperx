@@ -28,28 +28,18 @@ download() {
 }
 
 # ===============================
-# Download Faster Whisper Model (Ukrainian fine-tuned, CT2 format)
+# Download Faster Whisper Large-V3 (stable, most tested)
 # ===============================
-HF_REPO="kryvokhyzha/whisper-large-v3-turbo-ukrainian-ukraine-3percent-ct2"
-faster_whisper_model_dir="${MODELS_DIR}/faster-whisper-large-v3-turbo-uk"
+faster_whisper_model_dir="${MODELS_DIR}/faster-whisper-large-v3"
 mkdir -p "$faster_whisper_model_dir"
 
-download "https://huggingface.co/${HF_REPO}/resolve/main/config.json"              "$faster_whisper_model_dir/config.json"
-download "https://huggingface.co/${HF_REPO}/resolve/main/model.bin"                "$faster_whisper_model_dir/model.bin"
-download "https://huggingface.co/${HF_REPO}/resolve/main/preprocessor_config.json" "$faster_whisper_model_dir/preprocessor_config.json"
-download "https://huggingface.co/${HF_REPO}/resolve/main/vocabulary.json"          "$faster_whisper_model_dir/vocabulary.json"
-download "https://huggingface.co/${HF_REPO}/resolve/main/tokenizer_config.json"    "$faster_whisper_model_dir/tokenizer_config.json"
-download "https://huggingface.co/${HF_REPO}/resolve/main/added_tokens.json"        "$faster_whisper_model_dir/added_tokens.json"
-download "https://huggingface.co/${HF_REPO}/resolve/main/special_tokens_map.json"  "$faster_whisper_model_dir/special_tokens_map.json"
-download "https://huggingface.co/${HF_REPO}/resolve/main/normalizer.json"          "$faster_whisper_model_dir/normalizer.json"
-download "https://huggingface.co/${HF_REPO}/resolve/main/merges.txt"               "$faster_whisper_model_dir/merges.txt"
-download "https://huggingface.co/${HF_REPO}/resolve/main/vocab.json"               "$faster_whisper_model_dir/vocab.json"
+download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/config.json"              "$faster_whisper_model_dir/config.json"
+download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/model.bin"              "$faster_whisper_model_dir/model.bin"
+download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/preprocessor_config.json" "$faster_whisper_model_dir/preprocessor_config.json"
+download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/tokenizer.json"          "$faster_whisper_model_dir/tokenizer.json"
+download "https://huggingface.co/Systran/faster-whisper-large-v3/resolve/main/vocabulary.json"         "$faster_whisper_model_dir/vocabulary.json"
 
-echo "Faster Whisper Ukrainian model downloaded."
-
-# ===================================
-# VAD and wav2vec2 are Docker-handled
-# ===================================
+echo "Faster Whisper model downloaded."
 
 # ===================================
 # Python block: Hugging Face downloads using secret
@@ -76,10 +66,11 @@ except Exception as e:
 # Download SpeechBrain speaker recognition model
 snapshot_download(repo_id='speechbrain/spkrec-ecapa-voxceleb')
 
-# Optionally download PyAnnote models if HF_TOKEN is set
+# Download PyAnnote models (gated — require HF token)
 if hf_token:
     snapshot_download(repo_id='pyannote/embedding', use_auth_token=hf_token)
-    snapshot_download(repo_id='pyannote/speaker-diarization-2.1', use_auth_token=hf_token)
+    snapshot_download(repo_id='pyannote/speaker-diarization-community-1', use_auth_token=hf_token)
+    snapshot_download(repo_id='pyannote/segmentation-3.0', use_auth_token=hf_token)
 else:
     print('WARNING: HF_TOKEN not set, skipping pyannote models download')
 "

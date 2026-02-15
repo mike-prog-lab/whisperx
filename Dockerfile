@@ -1,51 +1,30 @@
-FROM runpod/base:0.6.2-cuda12.4.1
+FROM runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04
 
 SHELL ["/bin/bash", "-c"]
 WORKDIR /
 
-# Update and upgrade the system packages (Worker Template)
+# System dependencies
 RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y ffmpeg wget git libcudnn8 libcudnn8-dev && \
+    apt-get install -y --no-install-recommends ffmpeg wget git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# In your Dockerfile
-# Create cache directory
-RUN mkdir -p /cache/models
+# Cache directories for models
+RUN mkdir -p /cache/models /root/.cache/torch
 
-# Create torch cache directory for VAD model
-RUN mkdir -p /root/.cache/torch
-
-# Copy only requirements file first to leverage Docker cache
+# Install Python dependencies (torch is pre-installed in base image)
 COPY builder/requirements.txt /builder/requirements.txt
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install --no-cache-dir -r /builder/requirements.txt
 
-# Install Python dependencies (Worker Template)
-#RUN python3 -m pip install --upgrade pip hf_transfer && \
-#    python3 -m pip install -r /builder/requirements.txt
-RUN echo "setuptools<81" > /tmp/build-constraints.txt \
- && python3 -m pip install --upgrade pip \
- && python3 -m pip install hf_transfer==0.1.4 "setuptools<81" \
- && apt-get update && apt-get install -y \
-        libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev \
-        libavfilter-dev libswscale-dev libswresample-dev pkg-config \
- && echo "=== debug: searching for .pc files ===" \
- && find / -name "libavformat.pc" 2>/dev/null || echo "NO .pc files found" \
- && pkg-config --list-all 2>/dev/null | grep -i av || echo "NO av in pkg-config" \
- && export PKG_CONFIG_PATH="/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/pkgconfig:/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH:-}" \
- && python3 -m pip install --no-cache-dir --build-constraint /tmp/build-constraints.txt -r /builder/requirements.txt \
- && rm -rf /var/lib/apt/lists/*
-
-# Copy the local VAD model to the expected location
+# Copy VAD model to expected location
 COPY models/whisperx-vad-segmentation.bin /root/.cache/torch/whisperx-vad-segmentation.bin
 
-# Copy the rest of the builder files
+# Download ASR + diarization models
 COPY builder /builder
-
-# Download Faster Whisper Models
 RUN chmod +x /builder/download_models.sh
 RUN --mount=type=secret,id=hf_token /builder/download_models.sh
-#RUN pip install azure-storage-blob
+
 # Copy source code
 COPY src .
 

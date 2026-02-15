@@ -1,23 +1,15 @@
-# ---------- PyTorch CUDA 12.1 wheels ----------
---extra-index-url https://download.pytorch.org/whl/cu121
-torch==2.1.0+cu121
-torchaudio==2.1.0+cu121
+# WhisperX 3.8.1 — pulls pyannote>4.0, faster-whisper>1.1.1,
+# ctranslate2>4.5, numpy>2.1, transformers>4.48 as transitive deps.
+# torch 2.8.0 is pre-installed in the base Docker image.
+whisperx @ git+https://github.com/m-bain/whisperx.git@v3.8.1
 
-# ---------- main libs ----------
-# pinned to v3.2.0: compatible with torch 2.1, ctranslate2 4.4, pyannote 3.1.1
-whisperx @ git+https://github.com/m-bain/whisperx.git@v3.2.0
-pyannote.audio==3.1.1                # embedded/diarization
-speechbrain==0.5.16                  # ECAPA embedding that whisperx uses
-ctranslate2==4.4.0                   # required by whisperx v3.2.0
-# ---------- speechbrain dependencies ----------
-sentencepiece
-# ---------- utilities ----------
-pydub
-numpy==1.24.2
-scipy
-librosa==0.11.0
-huggingface-hub==0.29.3
+# Speaker recognition (ECAPA embeddings)
+speechbrain
+
+# RunPod serverless handler
 runpod==1.7.13
-cog
-cryptography<43.0.0
+
+# Utilities
+pydub
 python-dotenv
+huggingface-hub
