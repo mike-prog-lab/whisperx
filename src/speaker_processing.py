@@ -8,7 +8,7 @@ import librosa
 import numpy as np
 import requests
 import torch
-from pyannote.audio import Inference
+from pyannote.audio import Inference, Model
 from pyannote.core import SlidingWindowFeature
 from scipy.spatial.distance import cdist, cosine
 
@@ -41,7 +41,8 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 HF_TOKEN = os.getenv("HF_TOKEN", "").strip() or None
 
-EMBED_MODEL = Inference("pyannote/embedding", device=DEVICE)
+_embed_model = Model.from_pretrained("pyannote/embedding", use_auth_token=HF_TOKEN)
+EMBED_MODEL = Inference(_embed_model, device=DEVICE)
 
 ECAPA_MODEL = EncoderClassifier.from_hparams(
     source="speechbrain/spkrec-ecapa-voxceleb",
