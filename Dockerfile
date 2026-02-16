@@ -16,7 +16,8 @@ RUN mkdir -p /cache/models /root/.cache/torch
 COPY builder/requirements.txt /builder/requirements.txt
 RUN python3 -m pip install --upgrade pip && \
     python3 -m pip install --no-cache-dir -r /builder/requirements.txt && \
-    python3 -m pip install --no-cache-dir --force-reinstall lightning
+    python3 -m pip install --no-cache-dir --force-reinstall lightning && \
+    python3 -m pip install --no-cache-dir torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0
 
 # Copy VAD model to expected location
 COPY models/whisperx-vad-segmentation.bin /root/.cache/torch/whisperx-vad-segmentation.bin
