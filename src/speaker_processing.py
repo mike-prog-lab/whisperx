@@ -41,7 +41,9 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 HF_TOKEN = os.getenv("HF_TOKEN", "").strip() or None
 
-_embed_model = Model.from_pretrained("pyannote/embedding", use_auth_token=HF_TOKEN)
+_embed_model = Model.from_pretrained(
+    "pyannote/embedding", use_auth_token=HF_TOKEN, strict=False
+)
 EMBED_MODEL = Inference(_embed_model, device=DEVICE)
 
 ECAPA_MODEL = EncoderClassifier.from_hparams(

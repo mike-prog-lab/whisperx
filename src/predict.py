@@ -98,7 +98,6 @@ class Predictor(BasePredictor):
         from whisperx.diarize import DiarizationPipeline
         self.diarize_model = DiarizationPipeline(
             model_name="pyannote/speaker-diarization-community-1",
-            use_auth_token=os.environ.get("HF_TOKEN", "").strip(),
             device=DEVICE,
         )
         logger.info("Diarization model loaded.")
