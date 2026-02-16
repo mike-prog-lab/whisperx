@@ -13,3 +13,4 @@ runpod==1.7.13
 pydub
 python-dotenv
 huggingface-hub
+librosa
