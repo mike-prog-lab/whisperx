@@ -256,13 +256,10 @@ class Predictor(BasePredictor):
 
             # ── Alignment (optional) ──
             if align_output:
-                if detected_language in whisperx.alignment.DEFAULT_ALIGN_MODELS_TORCH or \
-                   detected_language in whisperx.alignment.DEFAULT_ALIGN_MODELS_HF:
+                try:
                     result = align(audio, result, debug)
-                else:
-                    logger.warning(
-                        f"Alignment not supported for language: {detected_language}"
-                    )
+                except Exception as e:
+                    logger.warning(f"Alignment skipped for '{detected_language}': {e}")
 
             # ── Diarization (optional) ──
             if diarization:
