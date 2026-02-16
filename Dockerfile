@@ -15,7 +15,8 @@ RUN mkdir -p /cache/models /root/.cache/torch
 # Install Python dependencies (torch is pre-installed in base image)
 COPY builder/requirements.txt /builder/requirements.txt
 RUN python3 -m pip install --upgrade pip && \
-    python3 -m pip install --no-cache-dir -r /builder/requirements.txt
+    python3 -m pip install --no-cache-dir -r /builder/requirements.txt && \
+    python3 -m pip install --no-cache-dir --force-reinstall lightning
 
 # Copy VAD model to expected location
 COPY models/whisperx-vad-segmentation.bin /root/.cache/torch/whisperx-vad-segmentation.bin
