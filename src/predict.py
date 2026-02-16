@@ -95,7 +95,8 @@ class Predictor(BasePredictor):
 
         # Pre-load diarization pipeline into VRAM (community-1 = best pyannote 4.x model)
         logger.info("Loading diarization model into VRAM...")
-        self.diarize_model = whisperx.DiarizationPipeline(
+        from whisperx.diarize import DiarizationPipeline
+        self.diarize_model = DiarizationPipeline(
             model_name="pyannote/speaker-diarization-community-1",
             use_auth_token=os.environ.get("HF_TOKEN", "").strip(),
             device=DEVICE,
